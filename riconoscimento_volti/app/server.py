@@ -5,16 +5,18 @@ Nessun database, nessuna foto salvata: le immagini arrivano, diventano numeri
 e finiscono li'. I vettori li conserva chi chiama, che sa a quale prenotazione
 appartengono e quando vanno cancellati.
 """
+import base64
 import json
 import logging
 import os
+import time
 
 from flask import Flask, jsonify, request
 from waitress import serve
 
 import volti
 
-VERSIONE = "0.1.0"
+VERSIONE = "0.1.1"
 OPZIONI_FILE = "/data/options.json"
 PREDEFINITE = {"soglia": 0.4, "volto_minimo_px": 80, "log_level": "info"}
 LIMITE_CORPO = 32 * 1024 * 1024   # una foto di telefono sta larga in 32 MB
@@ -59,7 +61,31 @@ def _errore_senza_volto(e):
     return jsonify({"errore": str(e)}), 422
 
 
-def _file(nome):
+def _corpo_json():
+    """Il corpo JSON, se la richiesta arriva cosi'. Altrimenti niente.
+
+    Due porte d'ingresso per la stessa cosa: le immagini come allegato, per chi
+    chiama da un programma, oppure scritte in base64 dentro un JSON, per chi ha
+    solo un comando HTTP e basta, come Home Assistant.
+    """
+    if not request.is_json:
+        return None
+    corpo = request.get_json(silent=True)
+    if not isinstance(corpo, dict):
+        raise Errore("il corpo JSON deve essere un oggetto")
+    return corpo
+
+
+def _immagine(nome):
+    corpo = _corpo_json()
+    if corpo is not None:
+        scritta = corpo.get(nome)
+        if not scritta:
+            raise Errore("manca l'immagine '%s'" % nome)
+        try:
+            return base64.b64decode(scritta, validate=True)
+        except Exception:
+            raise Errore("l'immagine '%s' non e' base64 valido" % nome)
     inviato = request.files.get(nome)
     if inviato is None:
         raise Errore("manca l'immagine '%s'" % nome)
@@ -75,17 +101,23 @@ def _soglia():
     La porta puo' volerla piu' alta del confronto documento-selfie: li' si
     confrontano due immagini molto diverse, qui due fotografie dal vero.
     """
-    chiesta = request.form.get("soglia")
+    corpo = _corpo_json()
+    chiesta = corpo.get("soglia") if corpo is not None else request.form.get("soglia")
     if chiesta is None:
         return float(OPZIONI["soglia"])
     try:
         return float(chiesta)
-    except ValueError:
+    except (TypeError, ValueError):
         raise Errore("soglia non e' un numero: %r" % chiesta)
 
 
 def _analizza(dati):
     return volti.volto_principale(dati, int(OPZIONI["volto_minimo_px"]))
+
+
+def _millisecondi(partenza):
+    """Quanto e' costata la richiesta. Serve a sapere se la macchina regge."""
+    return int(round((time.time() - partenza) * 1000))
 
 
 def _senza_vettore(esito):
@@ -105,7 +137,9 @@ def salute():
 @app.route("/volto", methods=["POST"])
 def volto():
     """Un'immagine, il vettore della faccia piu' grande che ci sta dentro."""
-    esito = _analizza(_file("immagine"))
+    partenza = time.time()
+    esito = _analizza(_immagine("immagine"))
+    esito["millisecondi"] = _millisecondi(partenza)
     log.info("volto: %d px, fiducia %.3f, altri %s",
              esito["larghezza_px"], esito["fiducia"], esito["altri_volti_px"])
     return jsonify(esito)
@@ -118,8 +152,9 @@ def confronta():
     Restituisce anche il vettore del selfie, che e' quello da conservare per
     riconoscere l'ospite alla porta. Della foto del documento non resta niente.
     """
-    documento = _analizza(_file("documento"))
-    selfie = _analizza(_file("selfie"))
+    partenza = time.time()
+    documento = _analizza(_immagine("documento"))
+    selfie = _analizza(_immagine("selfie"))
     soglia = _soglia()
     punteggio = volti.somiglianza(documento["vettore"], selfie["vettore"])
     log.info("confronta: %.4f contro soglia %.2f", punteggio, soglia)
@@ -130,6 +165,7 @@ def confronta():
         "documento": _senza_vettore(documento),
         "selfie": _senza_vettore(selfie),
         "vettore_selfie": selfie["vettore"],
+        "millisecondi": _millisecondi(partenza),
     })
 
 
@@ -141,17 +177,22 @@ def riconosci():
     chiama decide chi metterci dentro: di solito gli ospiti delle prenotazioni
     attive oggi, non tutti quelli che sono passati.
     """
-    grezzi = request.form.get("attesi")
-    if not grezzi:
-        raise Errore("manca il campo 'attesi'")
-    try:
-        attesi = json.loads(grezzi)
-    except ValueError:
-        raise Errore("'attesi' non e' un JSON valido")
+    corpo = _corpo_json()
+    if corpo is not None:
+        attesi = corpo.get("attesi")
+    else:
+        grezzi = request.form.get("attesi")
+        if not grezzi:
+            raise Errore("manca il campo 'attesi'")
+        try:
+            attesi = json.loads(grezzi)
+        except ValueError:
+            raise Errore("'attesi' non e' un JSON valido")
     if not isinstance(attesi, list) or not attesi:
         raise Errore("'attesi' deve essere una lista non vuota")
 
-    esito = _analizza(_file("immagine"))
+    partenza = time.time()
+    esito = _analizza(_immagine("immagine"))
     soglia = _soglia()
     punteggi = []
     for atteso in attesi:
@@ -174,6 +215,7 @@ def riconosci():
         "soglia": soglia,
         "tutti": punteggi,
         "volto": _senza_vettore(esito),
+        "millisecondi": _millisecondi(partenza),
     })
 
 
