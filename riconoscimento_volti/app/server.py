@@ -20,7 +20,7 @@ import cv2
 import mrz
 import volti
 
-VERSIONE = "0.7.0"
+VERSIONE = "0.7.1"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 PREDEFINITE = {"soglia": 0.4, "volto_minimo_px": 80, "parola": "", "log_level": "info"}
@@ -362,6 +362,20 @@ def riconosci():
     })
 
 
+@app.after_request
+def _restituisci_memoria(risposta):
+    """Ogni foto si lascia dietro centinaia di megabyte di aree di lavoro.
+
+    Le libera opencv, ma il magazzino se le tiene in tasca invece di ridarle
+    al sistema: finora lo chiedevamo solo dopo la MRZ, che era il posto
+    sbagliato, perche' le foto grosse passano dal confronto dei volti.
+    """
+    if request.method == "POST":
+        mrz.restituisci_memoria()
+        log.info("memoria dopo la richiesta: %s MB", _memoria_mb())
+    return risposta
+
+
 @app.route("/mrz", methods=["POST"])
 def leggi_mrz():
     """Le righe di caratteri in fondo al documento, e cosa dicono.
@@ -375,9 +389,7 @@ def leggi_mrz():
     log.info("mrz: %s, seconda passata %s, campi da correggere %s, memoria %s MB",
              esito["formato"], esito["seconda_passata"], esito["da_correggere"],
              _memoria_mb())
-    risposta = jsonify(esito)
-    mrz.restituisci_memoria()
-    return risposta
+    return jsonify(esito)
 
 
 if __name__ == "__main__":
