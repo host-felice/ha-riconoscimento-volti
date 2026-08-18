@@ -31,6 +31,8 @@ FIDUCIA_MINIMA = 0.6
 
 _rete = None
 _ultimo_uso = 0.0
+# Quanto e' costata l'ultima apertura, per saperlo invece che stimarlo.
+secondi_ultima_apertura = None
 # Una richiesta alla volta dentro la rete: il server ne serve piu' di una insieme
 # e questa non e' fatta per essere usata da due parti nello stesso momento.
 _una_alla_volta = threading.Lock()
@@ -49,9 +51,11 @@ def _rete_pronta():
     seicento: quelle sono il conto vero, e si pagano solo quando servono.
     Da chiamare con la serratura gia' presa.
     """
-    global _rete, _ultimo_uso
+    global _rete, _ultimo_uso, secondi_ultima_apertura
     if _rete is None:
+        partenza = time.time()
         _rete = cv2.dnn.readNetFromONNX(ARCFACE)
+        secondi_ultima_apertura = round(time.time() - partenza, 2)
     _ultimo_uso = time.time()
     return _rete
 

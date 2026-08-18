@@ -21,7 +21,7 @@ import cv2
 import mrz
 import volti
 
-VERSIONE = "0.7.2"
+VERSIONE = "0.7.3"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 PREDEFINITE = {"soglia": 0.4, "volto_minimo_px": 80, "parola": "", "log_level": "info"}
@@ -385,6 +385,10 @@ def _restituisci_memoria(risposta):
     sbagliato, perche' le foto grosse passano dal confronto dei volti.
     """
     if request.method == "POST":
+        if volti.secondi_ultima_apertura is not None:
+            log.info("modello dei volti aperto in %.2f secondi",
+                     volti.secondi_ultima_apertura)
+            volti.secondi_ultima_apertura = None
         mrz.restituisci_memoria()
         log.info("memoria dopo la richiesta: %s MB", _memoria_mb())
     return risposta
