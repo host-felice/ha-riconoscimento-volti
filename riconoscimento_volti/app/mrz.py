@@ -7,8 +7,7 @@ importante porta con se' una cifra di controllo, e quella cifra dice se il
 campo si puo' usare o va fatto correggere all'ospite.
 """
 import gc
-import threading
-import time
+import multiprocessing
 
 import cv2
 import numpy as np
@@ -40,9 +39,13 @@ TIPI = {
 }
 
 _lettore = None
-_ultimo_uso = 0.0
-_serratura = threading.Lock()
-MINUTI_DI_PAZIENZA = 10
+
+# Oltre questo il processo che legge si considera piantato e si abbatte.
+SECONDI_DI_ATTESA = 180
+
+# Il figlio nasce da zero, non dalla copia di questo processo: dentro un
+# servizio con piu' thread la copia porta con se' serrature prese da altri.
+_CONTESTO = multiprocessing.get_context("spawn")
 
 
 class NessunaMRZ(Exception):
@@ -56,19 +59,18 @@ class LettoreAssente(Exception):
 def _lettore_pronto():
     """Il modello si carica alla prima richiesta, non all'avvio.
 
-    Sono trecento megabyte di roba: chi usa solo il riconoscimento dei volti
-    non deve pagarli.
+    Vive dentro il processo usa e getta di analizza_altrove, quindi si carica
+    una volta sola e se ne va con lui: chi usa solo il riconoscimento dei
+    volti non lo paga mai.
     """
-    global _lettore, _ultimo_uso
-    with _serratura:
-        if _lettore is None:
-            try:
-                from mrzscanner import MRZScanner
-                _lettore = MRZScanner()
-            except Exception as guaio:
-                raise LettoreAssente("il lettore della MRZ non si carica: %s" % guaio)
-        _ultimo_uso = time.time()
-        return _lettore
+    global _lettore
+    if _lettore is None:
+        try:
+            from mrzscanner import MRZScanner
+            _lettore = MRZScanner()
+        except Exception as guaio:
+            raise LettoreAssente("il lettore della MRZ non si carica: %s" % guaio)
+    return _lettore
 
 
 def restituisci_memoria():
@@ -83,22 +85,6 @@ def restituisci_memoria():
         ctypes.CDLL("libc.so.6").malloc_trim(0)
     except Exception:
         pass
-
-
-def libera_se_inattivo():
-    """Scarica il lettore della MRZ se non lo cerca nessuno da un po'.
-
-    Sono centinaia di megabyte per un lavoro che capita due volte a
-    prenotazione: tenerli occupati tutto l'anno non ha senso. Si ricarica da
-    solo alla richiesta dopo, in pochi secondi.
-    """
-    global _lettore
-    with _serratura:
-        if _lettore is None or time.time() - _ultimo_uso < MINUTI_DI_PAZIENZA * 60:
-            return False
-        _lettore = None
-    restituisci_memoria()
-    return True
 
 
 def cifra_di_controllo(testo):
@@ -296,3 +282,52 @@ def analizza(dati_binari):
     if migliore is not None:
         return migliore
     raise guaio or NessunaMRZ("nessuna zona leggibile a macchina trovata nella foto")
+
+
+def _in_disparte(scrivi_qui, dati_binari):
+    """Il lavoro visto da dentro il processo usa e getta: legge, risponde, muore."""
+    try:
+        scrivi_qui.send(("bene", analizza(dati_binari)))
+    except NessunaMRZ as guaio:
+        scrivi_qui.send(("nessuna", str(guaio)))
+    except Exception as guaio:
+        scrivi_qui.send(("assente", "la lettura del documento e' fallita: %s" % guaio))
+    finally:
+        scrivi_qui.close()
+
+
+def analizza_altrove(dati_binari, secondi=SECONDI_DI_ATTESA):
+    """La stessa lettura, fatta da un processo che subito dopo muore.
+
+    Il motore della MRZ si prende quasi un giga e non lo restituisce: non e' un
+    errore da correggere, e' il modo in cui si procura la memoria. L'unico
+    punto in cui il sistema se la riprende con certezza e' la fine di un
+    processo, quindi la lettura si fa la' dentro e il servizio resta leggero.
+    Costa il tempo di avviare un interprete, che su un lavoro da qualche
+    secondo, e che capita due volte a prenotazione, non si nota.
+    """
+    leggi_qui, scrivi_qui = _CONTESTO.Pipe(duplex=False)
+    figlio = _CONTESTO.Process(target=_in_disparte, args=(scrivi_qui, dati_binari),
+                               daemon=True)
+    figlio.start()
+    scrivi_qui.close()
+    try:
+        if not leggi_qui.poll(secondi):
+            raise NessunaMRZ("la lettura del documento ci ha messo troppo")
+        try:
+            come, cosa = leggi_qui.recv()
+        except EOFError:
+            raise LettoreAssente("la lettura del documento si e' interrotta")
+    finally:
+        leggi_qui.close()
+        if figlio.is_alive():
+            figlio.terminate()
+        figlio.join(10)
+        if figlio.is_alive():
+            figlio.kill()
+        figlio.close()
+    if come == "bene":
+        return cosa
+    if come == "nessuna":
+        raise NessunaMRZ(cosa)
+    raise LettoreAssente(cosa)

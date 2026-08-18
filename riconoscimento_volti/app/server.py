@@ -7,7 +7,6 @@ appartengono e quando vanno cancellati.
 """
 import base64
 import hmac
-import threading
 import json
 import logging
 import os
@@ -21,7 +20,7 @@ import cv2
 import mrz
 import volti
 
-VERSIONE = "0.6.1"
+VERSIONE = "0.7.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 PREDEFINITE = {"soglia": 0.4, "volto_minimo_px": 80, "parola": "", "log_level": "info"}
@@ -65,17 +64,6 @@ def _memoria_mb():
     except (IOError, OSError, ValueError):
         pass
     return None
-
-
-def _guardiano():
-    """Ogni minuto guarda se il lettore della MRZ si puo' mandare a dormire."""
-    while True:
-        time.sleep(60)
-        try:
-            if mrz.libera_se_inattivo():
-                log.info("lettore MRZ scaricato per inattivita', memoria %s MB", _memoria_mb())
-        except Exception as guaio:
-            log.warning("il guardiano della memoria e' inciampato: %s", guaio)
 
 
 CHIUSA = """<!DOCTYPE html><html lang="it"><head><meta charset="utf-8">
@@ -376,10 +364,11 @@ def leggi_mrz():
     soli che si possono scrivere nel modulo senza farli ricontrollare a mano.
     """
     partenza = time.time()
-    esito = mrz.analizza(_immagine("immagine"))
+    esito = mrz.analizza_altrove(_immagine("immagine"))
     esito["millisecondi"] = _millisecondi(partenza)
-    log.info("mrz: %s, seconda passata %s, campi da correggere %s",
-             esito["formato"], esito["seconda_passata"], esito["da_correggere"])
+    log.info("mrz: %s, seconda passata %s, campi da correggere %s, memoria %s MB",
+             esito["formato"], esito["seconda_passata"], esito["da_correggere"],
+             _memoria_mb())
     risposta = jsonify(esito)
     mrz.restituisci_memoria()
     return risposta
@@ -387,7 +376,6 @@ def leggi_mrz():
 
 if __name__ == "__main__":
     porta = int(os.environ.get("PORTA", 8099))
-    threading.Thread(target=_guardiano, daemon=True).start()
     log.info("in ascolto sulla porta %d, soglia %.2f, memoria %s MB",
              porta, float(OPZIONI["soglia"]), _memoria_mb())
     serve(app, host="0.0.0.0", port=porta, threads=2)
