@@ -17,7 +17,7 @@ from waitress import serve
 
 import volti
 
-VERSIONE = "0.3.0"
+VERSIONE = "0.3.1"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 PREDEFINITE = {"soglia": 0.4, "volto_minimo_px": 80, "parola": "", "log_level": "info"}

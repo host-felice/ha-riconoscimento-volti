@@ -30,8 +30,9 @@
   button:disabled { background: #c9c3b8; color: #fff; cursor: default; }
   #vai { width: 100%; padding: .95rem; font-size: 1.05rem; }
   input[type=file] { display: none; }
-  .mirino { position: relative; display: none; margin-top: .8rem; }
-  .mirino video { width: 100%; border-radius: 10px; display: block; background: #000; }
+  .mirino { display: none; margin-top: .8rem; }
+  .inquadratura { position: relative; line-height: 0; }
+  .inquadratura video { width: 100%; border-radius: 10px; display: block; background: #000; }
   .guida {
     position: absolute; inset: 0; pointer-events: none;
     display: flex; align-items: center; justify-content: center;
@@ -40,8 +41,9 @@
     border: 3px solid rgba(255,255,255,.9);
     box-shadow: 0 0 0 100vmax rgba(0,0,0,.35);
   }
-  .guida.documento .forma { width: 84%; aspect-ratio: 1.585; border-radius: 10px; }
-  .guida.viso .forma { width: 58%; aspect-ratio: .78; border-radius: 50%; }
+  .guida.documento .forma { width: 82%; aspect-ratio: 1.585; border-radius: 10px; }
+  .guida.viso { align-items: flex-start; padding-top: 12%; }
+  .guida.viso .forma { width: 46%; aspect-ratio: .75; border-radius: 50%; }
   .guida span {
     position: absolute; bottom: .6rem; left: 50%; transform: translateX(-50%);
     background: rgba(0,0,0,.6); color: #fff; font-size: .82rem;
@@ -81,8 +83,10 @@
     <button class="chiaro" data-file="documento">Scegli un file</button>
   </div>
   <div class="mirino" id="mirino_documento">
-    <video playsinline muted></video>
-    <div class="guida documento"><div class="forma"></div><span>il documento dentro il riquadro</span></div>
+    <div class="inquadratura">
+      <video playsinline muted></video>
+      <div class="guida documento"><div class="forma"></div><span>il documento dentro il riquadro</span></div>
+    </div>
     <div class="bottoni" style="margin-top:.6rem">
       <button data-scatta="documento">Scatta</button>
       <button class="chiaro" data-annulla="documento">Annulla</button>
@@ -94,14 +98,16 @@
 
 <div class="passo" id="passo_self">
   <h2>2. Il selfie</h2>
-  <p>Il viso dentro l'ovale, senza toccarne i bordi. Se la faccia riempie tutto lo schermo il riconoscimento fatica: allontana il telefono di un palmo.</p>
+  <p>Tutta la testa dentro l'ovale, capelli e mento compresi, senza toccarne i bordi. Se la faccia riempie lo schermo il riconoscimento fatica: allontana il telefono.</p>
   <div class="bottoni">
     <button data-camera="selfie">Fotocamera</button>
     <button class="chiaro" data-file="selfie">Scegli un file</button>
   </div>
   <div class="mirino" id="mirino_selfie">
-    <video playsinline muted></video>
-    <div class="guida viso"><div class="forma"></div><span>il viso dentro l'ovale</span></div>
+    <div class="inquadratura">
+      <video playsinline muted></video>
+      <div class="guida viso"><div class="forma"></div><span>il viso dentro l'ovale</span></div>
+    </div>
     <div class="bottoni" style="margin-top:.6rem">
       <button data-scatta="selfie">Scatta</button>
       <button class="chiaro" data-annulla="selfie">Annulla</button>
