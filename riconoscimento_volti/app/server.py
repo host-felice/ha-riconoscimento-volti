@@ -343,8 +343,14 @@ def riconosci():
     punteggi = sorted(({"nome": n, "somiglianza": round(p, 4)} for n, p in per_atteso.items()),
                       key=lambda x: -x["somiglianza"])
     riconosciuti = [p for p in punteggi if p["somiglianza"] >= soglia]
-    log.info("riconosci: %d facce in %d scatti, riconosciuti %s, sconosciuti %d",
-             len(facce), len(scatti), [r["nome"] for r in riconosciuti], len(sconosciuti))
+    # Lo sconosciuto si porta dietro il suo punteggio: uno 0,05 e' un falso
+    # rilevamento, uno 0,35 e' un ospite ripreso male e dice che la soglia
+    # e' un filo alta. Senza il numero i due casi si confondono.
+    fuori = ["%.2f su %d px" % (s["somiglianza_migliore"], s["larghezza_px"])
+             for s in sconosciuti]
+    log.info("riconosci: %d facce in %d scatti, riconosciuti %s, sconosciuti %d %s",
+             len(facce), len(scatti), [r["nome"] for r in riconosciuti],
+             len(fuori), fuori)
     return jsonify({
         "riconosciuti": riconosciuti,
         "sconosciuti": sconosciuti,
