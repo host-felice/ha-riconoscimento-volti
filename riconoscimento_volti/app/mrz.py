@@ -26,6 +26,10 @@ class NessunaMRZ(Exception):
     pass
 
 
+class LettoreAssente(Exception):
+    pass
+
+
 def _lettore_pronto():
     """Il modello si carica alla prima richiesta, non all'avvio.
 
@@ -34,8 +38,11 @@ def _lettore_pronto():
     """
     global _lettore
     if _lettore is None:
-        from mrzscanner import MRZScanner
-        _lettore = MRZScanner()
+        try:
+            from mrzscanner import MRZScanner
+            _lettore = MRZScanner()
+        except Exception as guaio:
+            raise LettoreAssente("il lettore della MRZ non si carica: %s" % guaio)
     return _lettore
 
 

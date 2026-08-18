@@ -1,11 +1,12 @@
 # Debian, non Alpine: opencv, onnxruntime e i loro modelli non hanno pacchetti
 # pronti per musl. Il Supervisor propone la sua immagine di base, che e' Alpine,
 # e qui non serve.
-FROM python:3.12-slim-trixie
+FROM python:3.12-slim-bookworm
 
-# Debian 13 e non 12 per una ragione sola: il lettore della MRZ decodifica i
-# jpeg da se' e pretende libjpeg-turbo 3, che su Debian 12 non c'e'.
-# Il resto di sistema e' una libreria per opencv senza interfaccia.
+# Due librerie di sistema e basta: una per opencv senza interfaccia, una per il
+# lettore della MRZ, che i jpeg se li decodifica da solo. Debian ferma
+# libjpeg-turbo alla 2, e per questo PyTurboJPEG e' fissato alla 1 fra i
+# requisiti: la 2 pretende una libreria di sistema che qui non esiste.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        libglib2.0-0 libturbojpeg0 curl unzip ca-certificates \

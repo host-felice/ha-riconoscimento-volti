@@ -115,6 +115,12 @@ def _errore_senza_mrz(e):
     return jsonify({"errore": str(e)}), 422
 
 
+@app.errorhandler(mrz.LettoreAssente)
+def _errore_lettore(e):
+    log.error("%s", e)
+    return jsonify({"errore": str(e)}), 503
+
+
 def _corpo_json():
     """Il corpo JSON, se la richiesta arriva cosi'. Altrimenti niente.
 
