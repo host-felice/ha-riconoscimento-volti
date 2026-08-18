@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prova del riconoscimento</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 1.2rem 1rem 3rem;
+    font: 17px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: 34rem; margin-inline: auto;
+    background: #faf9f7; color: #1c1b19;
+  }
+  h1 { font-size: 1.45rem; margin: 0 0 .3rem; }
+  .sotto { color: #6a6660; margin: 0 0 1.6rem; }
+  .passo {
+    border: 1px solid #e2ded7; border-radius: 14px; padding: 1rem;
+    background: #fff; margin-bottom: 1rem;
+  }
+  .passo h2 { font-size: 1.05rem; margin: 0 0 .2rem; }
+  .passo p { margin: .2rem 0 .8rem; color: #6a6660; font-size: .93rem; }
+  label.scatta {
+    display: block; text-align: center; padding: .85rem;
+    border: 2px dashed #c9c3b8; border-radius: 10px;
+    cursor: pointer; font-weight: 600;
+  }
+  label.scatta:active { background: #f2efe9; }
+  input[type=file] { display: none; }
+  img.anteprima { display: none; width: 100%; border-radius: 10px; margin-top: .8rem; }
+  button {
+    width: 100%; padding: .95rem; font-size: 1.05rem; font-weight: 600;
+    border: 0; border-radius: 12px; background: #1c1b19; color: #fff;
+  }
+  button:disabled { background: #c9c3b8; }
+  #esito { margin-top: 1.2rem; }
+  .verdetto { font-size: 1.35rem; font-weight: 700; margin-bottom: .3rem; }
+  .si { color: #1a7f37; }
+  .no { color: #b3261e; }
+  .punteggio { font-variant-numeric: tabular-nums; font-size: 2.6rem; font-weight: 700; }
+  .dettagli { color: #6a6660; font-size: .88rem; margin-top: .6rem; }
+  .dettagli td { padding: .1rem .6rem .1rem 0; vertical-align: top; }
+  .avviso { background: #fff4d6; border-radius: 10px; padding: .7rem .9rem; margin-top: .8rem; font-size: .9rem; }
+  .nota { font-size: .85rem; color: #6a6660; margin-top: 1.6rem; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #16150f; color: #ece8e0; }
+    .passo { background: #201f18; border-color: #35332a; }
+    .sotto, .passo p, .dettagli { color: #a09a8e; }
+    label.scatta { border-color: #46443a; }
+    button { background: #ece8e0; color: #16150f; }
+    button:disabled { background: #46443a; color: #8d887c; }
+    .avviso { background: #3a3216; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Prova del riconoscimento</h1>
+<p class="sotto">Due foto, un punteggio. Non resta niente: le immagini vengono misurate e buttate, e questa pagina non salva nulla da nessuna parte.</p>
+
+<div class="passo">
+  <h2>1. Il documento</h2>
+  <p>Il lato con la fotografia: il fronte della carta d'identità, la pagina dei dati del passaporto. Riempi l'inquadratura con il documento e tieni il telefono parallelo, non di sbieco.</p>
+  <label class="scatta" for="doc">Scatta o scegli la foto del documento</label>
+  <input type="file" id="doc" accept="image/*" capture="environment">
+  <img class="anteprima" id="doc_ant" alt="">
+</div>
+
+<div class="passo">
+  <h2>2. Il selfie</h2>
+  <p>Viso intero, con un po' d'aria sopra i capelli e sotto il mento. Se la faccia riempie tutto lo schermo il riconoscimento fatica: allontana il telefono di un palmo.</p>
+  <label class="scatta" for="self">Scatta o scegli il selfie</label>
+  <input type="file" id="self" accept="image/*" capture="user">
+  <img class="anteprima" id="self_ant" alt="">
+</div>
+
+<button id="vai" disabled>Confronta</button>
+
+<div id="esito"></div>
+
+<p class="nota">Banco di prova del guest portal. Il punteggio va da 0 a 1: sopra la soglia il sistema considera che sia la stessa persona.</p>
+
+<script>
+const LATO = 1600;
+const foto = { documento: null, selfie: null };
+
+function rimpicciolisci(file, callback) {
+  const lettore = new FileReader();
+  lettore.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      let { width: w, height: h } = img;
+      const scala = LATO / Math.max(w, h);
+      if (scala < 1) { w = Math.round(w * scala); h = Math.round(h * scala); }
+      const tela = document.createElement("canvas");
+      tela.width = w; tela.height = h;
+      tela.getContext("2d").drawImage(img, 0, 0, w, h);
+      tela.toBlob(b => callback(b, tela.toDataURL("image/jpeg", 0.5)), "image/jpeg", 0.85);
+    };
+    img.src = e.target.result;
+  };
+  lettore.readAsDataURL(file);
+}
+
+function collega(idInput, idAnteprima, chiave) {
+  document.getElementById(idInput).addEventListener("change", ev => {
+    const file = ev.target.files[0];
+    if (!file) return;
+    rimpicciolisci(file, (blob, anteprima) => {
+      foto[chiave] = blob;
+      const ant = document.getElementById(idAnteprima);
+      ant.src = anteprima; ant.style.display = "block";
+      document.getElementById("vai").disabled = !(foto.documento && foto.selfie);
+    });
+  });
+}
+collega("doc", "doc_ant", "documento");
+collega("self", "self_ant", "selfie");
+
+document.getElementById("vai").addEventListener("click", async () => {
+  const bottone = document.getElementById("vai");
+  const esito = document.getElementById("esito");
+  bottone.disabled = true; bottone.textContent = "Sto misurando...";
+  esito.innerHTML = "";
+  const dati = new FormData();
+  dati.append("documento", foto.documento, "documento.jpg");
+  dati.append("selfie", foto.selfie, "selfie.jpg");
+  try {
+    const risposta = await fetch("confronta", { method: "POST", body: dati });
+    const r = await risposta.json();
+    esito.innerHTML = risposta.ok ? scheda(r) : avviso(r.errore);
+  } catch (e) {
+    esito.innerHTML = avviso("non sono riuscito a parlare con il server: " + e.message);
+  }
+  bottone.disabled = false; bottone.textContent = "Confronta";
+});
+
+function avviso(testo) {
+  return '<div class="passo"><div class="verdetto no">Non ha funzionato</div><p>' + testo + "</p></div>";
+}
+
+function scheda(r) {
+  const fantasma = r.documento.altri_volti_px.length
+    ? '<div class="avviso">Sul documento ho trovato più di una faccia (' +
+      r.documento.altri_volti_px.join(", ") + ' pixel di larghezza). Ho misurato la più grande: ' +
+      'le altre di solito sono l\'immagine fantasma stampata contro le falsificazioni.</div>'
+    : "";
+  return '<div class="passo">' +
+    '<div class="verdetto ' + (r.verificato ? "si" : "no") + '">' +
+      (r.verificato ? "Stessa persona" : "Non è la stessa persona") + "</div>" +
+    '<div class="punteggio">' + r.somiglianza.toFixed(3) + "</div>" +
+    '<p>soglia ' + r.soglia.toFixed(2) + "</p>" + fantasma +
+    '<table class="dettagli">' +
+      riga("faccia sul documento", r.documento.larghezza_px + " px, fiducia " + r.documento.fiducia) +
+      riga("faccia nel selfie", r.selfie.larghezza_px + " px, fiducia " + r.selfie.fiducia) +
+      (r.selfie.seconda_passata || r.documento.seconda_passata
+        ? riga("nota", "una faccia riempiva l'inquadratura, l'ho ritrovata rimpicciolendo la foto") : "") +
+      riga("tempo", r.millisecondi + " ms") +
+    "</table></div>";
+}
+
+function riga(chiave, valore) {
+  return "<tr><td>" + chiave + "</td><td>" + valore + "</td></tr>";
+}
+</script>
+</body>
+</html>

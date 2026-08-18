@@ -11,12 +11,13 @@ import logging
 import os
 import time
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from waitress import serve
 
 import volti
 
-VERSIONE = "0.1.1"
+VERSIONE = "0.2.0"
+QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = "/data/options.json"
 PREDEFINITE = {"soglia": 0.4, "volto_minimo_px": 80, "log_level": "info"}
 LIMITE_CORPO = 32 * 1024 * 1024   # una foto di telefono sta larga in 32 MB
@@ -122,6 +123,12 @@ def _millisecondi(partenza):
 
 def _senza_vettore(esito):
     return {c: v for c, v in esito.items() if c != "vettore"}
+
+
+@app.route("/", methods=["GET"])
+def pagina():
+    """Il banco di prova da telefono: due foto, un punteggio."""
+    return send_from_directory(QUI, "pagina.html")
 
 
 @app.route("/salute", methods=["GET"])
