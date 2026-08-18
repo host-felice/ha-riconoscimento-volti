@@ -32,17 +32,24 @@
   button:disabled { background: #c9c3b8; color: #fff; cursor: default; }
   #vai { padding: .95rem; font-size: 1.05rem; }
   .mirino { display: none; margin-top: .8rem; }
-  .inquadratura { position: relative; line-height: 0; }
+  /* overflow nascosto: l'ombra che scurisce il contorno va tagliata qui,
+     altrimenti si allarga su tutta la pagina. */
+  .inquadratura { position: relative; line-height: 0; overflow: hidden; border-radius: 10px; }
   .inquadratura video { width: 100%; border-radius: 10px; display: block; background: #000; }
   .guida {
     position: absolute; inset: 0; pointer-events: none;
     display: flex; align-items: center; justify-content: center;
   }
-  .guida .forma { border: 3px solid rgba(255,255,255,.9); box-shadow: 0 0 0 100vmax rgba(0,0,0,.35); }
+  .guida .forma {
+    border: 3px solid rgba(255,255,255,.9);
+    box-shadow: 0 0 0 100vmax rgba(0,0,0,.35);
+    max-width: 90%; max-height: 90%;
+  }
   .guida.documento .forma { width: 82%; aspect-ratio: 1.585; border-radius: 10px; }
   .guida.pagina .forma { width: 86%; aspect-ratio: 1.42; border-radius: 6px; }
-  .guida.viso { align-items: flex-start; padding-top: 12%; }
-  .guida.viso .forma { width: 46%; aspect-ratio: .75; border-radius: 50%; }
+  /* L'ovale si misura sull'altezza del video e sta al centro: cosi' vale
+     uguale con il telefono dritto e di lato, e il mento non esce mai. */
+  .guida.viso .forma { height: 62%; aspect-ratio: .75; border-radius: 50%; }
   .guida span {
     position: absolute; bottom: .6rem; left: 50%; transform: translateX(-50%);
     background: rgba(0,0,0,.6); color: #fff; font-size: .82rem;
@@ -81,7 +88,7 @@
 <body>
 
 <h1>Prova del riconoscimento</h1>
-<p class="sotto">Il documento, un selfie, e la macchina dice se sei tu e cosa c'è scritto. Non resta niente: le immagini vengono misurate e buttate.</p>
+<p class="sotto">Il documento, un selfie, e la macchina dice se sei tu e cosa c'è scritto. Non resta niente: le immagini vengono misurate e buttate. Dal telefono viene meglio che dal computer, perché la fotocamera è migliore.</p>
 
 <div class="passo" id="passo_tipo">
   <h2>1. Che documento hai?</h2>
@@ -101,6 +108,7 @@
       <video playsinline muted></video>
       <div class="guida documento"><div class="forma"></div><span>il documento dentro il riquadro</span></div>
     </div>
+    <div class="avviso risoluzione" style="display:none"></div>
     <div class="bottoni" style="margin-top:.6rem">
       <button data-scatta="documento">Scatta</button>
       <button class="chiaro" data-annulla="documento">Annulla</button>
@@ -118,6 +126,7 @@
       <video playsinline muted></video>
       <div class="guida documento"><div class="forma"></div><span>le righe dentro il riquadro</span></div>
     </div>
+    <div class="avviso risoluzione" style="display:none"></div>
     <div class="bottoni" style="margin-top:.6rem">
       <button data-scatta="retro">Scatta</button>
       <button class="chiaro" data-annulla="retro">Annulla</button>
@@ -135,6 +144,7 @@
       <video playsinline muted></video>
       <div class="guida viso"><div class="forma"></div><span>il viso dentro l'ovale</span></div>
     </div>
+    <div class="avviso risoluzione" style="display:none"></div>
     <div class="bottoni" style="margin-top:.6rem">
       <button data-scatta="selfie">Scatta</button>
       <button class="chiaro" data-annulla="selfie">Annulla</button>
@@ -212,6 +222,23 @@ async function accendi(chiave) {
   video.style.transform = davanti ? "scaleX(-1)" : "none";
   await video.play();
   mirino.style.display = "block";
+  avvisaSeScarsa(chiave, mirino);
+}
+
+function avvisaSeScarsa(chiave, mirino) {
+  // Le webcam dei portatili danno 720 punti: bastano per una faccia, sono
+  // pochi per le righe di caratteri, e conviene dirlo prima dello scatto.
+  const nota = mirino.querySelector(".risoluzione");
+  const misure = flussi[chiave].getVideoTracks()[0].getSettings();
+  const lato = Math.max(misure.width || 0, misure.height || 0);
+  if (chiave !== "selfie" && lato && lato < 1600) {
+    nota.textContent = "Questa fotocamera dà " + lato + " pixel: pochi per le righe di "
+      + "caratteri. Avvicina il documento fino a riempire tutto il riquadro, oppure "
+      + "rifai la prova dal telefono.";
+    nota.style.display = "block";
+  } else {
+    nota.style.display = "none";
+  }
 }
 
 function spegni(chiave) {
