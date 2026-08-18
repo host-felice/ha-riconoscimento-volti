@@ -1,5 +1,6 @@
-ARG BUILD_FROM=python:3.12-slim-bookworm
-FROM ${BUILD_FROM}
+# Debian, non Alpine: opencv e i suoi modelli non hanno pacchetti pronti per musl.
+# Il Supervisor propone la sua immagine di base, che e' Alpine, e qui non serve.
+FROM python:3.12-slim-bookworm
 
 # OpenCV senza interfaccia grafica ha bisogno solo di questa, non di Qt ne' di GStreamer.
 RUN apt-get update \
