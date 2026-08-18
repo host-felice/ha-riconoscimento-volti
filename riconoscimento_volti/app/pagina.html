@@ -184,7 +184,18 @@ const LATO = 1600;
 const LATO_MRZ = 3000;   // i caratteri sono piccoli, qui la risoluzione serve
 const foto = { documento: null, retro: null, selfie: null };
 const flussi = { documento: null, retro: null, selfie: null, porta: null };
-let attesi = JSON.parse(localStorage.getItem("attesi") || "[]");
+const ORE_DI_VITA = 24;
+let attesi = ripesca();
+
+function ripesca() {
+  // La lista resta nel telefono anche a pagina chiusa, ma non per sempre:
+  // sono vettori di facce, e dopo un giorno non servono piu' a niente.
+  const scaduta = Date.now() - ORE_DI_VITA * 3600 * 1000;
+  const salvati = JSON.parse(localStorage.getItem("attesi") || "[]")
+    .filter(a => (a.quando || 0) > scaduta);
+  localStorage.setItem("attesi", JSON.stringify(salvati));
+  return salvati;
+}
 let tipo = null;
 
 const parola = new URLSearchParams(location.search).get("parola")
@@ -414,7 +425,8 @@ function registra(vettore, dati) {
   const nome = (dati && dati.campi && !dati.errore)
     ? [dati.campi.nome.valore, dati.campi.cognome.valore].filter(Boolean).join(" ")
     : "ospite " + (attesi.length + 1);
-  attesi = attesi.filter(a => a.nome !== nome).concat([{ nome: nome, vettore: vettore }]);
+  attesi = attesi.filter(a => a.nome !== nome)
+                 .concat([{ nome: nome, vettore: vettore, quando: Date.now() }]);
   localStorage.setItem("attesi", JSON.stringify(attesi));
   scriviAttesi();
 }
@@ -424,7 +436,8 @@ function scriviAttesi() {
   document.getElementById("apri_porta").disabled = attesi.length === 0;
   dove.textContent = attesi.length
     ? "Attesi in questa prenotazione: " + attesi.map(a => a.nome).join(", ")
-      + ". Tieni il telefono in alto, come la telecamera sopra la porta, e mettetevi davanti anche in più di uno."
+      + ". Tieni il telefono in alto, come la telecamera sopra la porta, e mettetevi davanti anche in più di uno. "
+      + "La lista vive solo in questo telefono e si cancella da sola dopo un giorno."
     : "Nessun ospite registrato: fai prima il controllo qui sopra, e chi risulta sé stesso finisce fra gli attesi di questa prenotazione.";
 }
 scriviAttesi();
