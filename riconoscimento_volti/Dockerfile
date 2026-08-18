@@ -36,12 +36,16 @@ RUN mkdir -p /modelli \
 # e un add-on che parte non deve dipendere da quel viaggio.
 RUN python3 -c "from mrzscanner import MRZScanner; MRZScanner()"
 
+# Ogni thread di calcolo si tiene la sua area di memoria, e qui le richieste
+# sono poche: due bastano, e l'add-on occupa meno.
+ENV OMP_NUM_THREADS=2     OPENBLAS_NUM_THREADS=2     MKL_NUM_THREADS=2
+
 COPY app /app
 
 LABEL \
   io.hass.name="Riconoscimento volti" \
   io.hass.description="Confronto documento-selfie, lettura della MRZ e riconoscimento all'ingresso" \
   io.hass.type="addon" \
-  io.hass.version="0.4.1"
+  io.hass.version="0.5.0"
 
 CMD ["python3", "-u", "/app/server.py"]

@@ -342,7 +342,7 @@ const NOMI_CAMPI = {
   numero_personale: "numero personale", scadenza: "scadenza",
   stato_emissione: "stato di rilascio"
 };
-const DA_MOSTRARE = ["cognome", "nome", "sesso", "data_nascita", "cittadinanza",
+const DA_MOSTRARE = ["tipo_documento", "cognome", "nome", "sesso", "data_nascita", "cittadinanza",
                      "numero_documento", "numero_supporto", "numero_personale",
                      "scadenza", "stato_emissione"];
 
@@ -366,7 +366,8 @@ function schedaMrz(r) {
       + "sono stati letti male. Correggili prima di confermare.</div>";
   return '<div class="passo">' +
     '<div class="verdetto ' + (r.affidabile ? "si" : "no") + '">I dati del documento</div>' +
-    "<p>formato " + r.formato + ", letti in " + r.millisecondi + " ms" +
+    "<p>" + r.tipo_documento + " (" + r.sigla_documento + "), formato " + r.formato +
+      ", letto in " + r.millisecondi + " ms" +
       (r.seconda_passata ? ", al secondo tentativo" : "") + ". <b>Sono giusti?</b></p>" +
     avvertenza + campi +
     '<button id="conferma">Sì, i dati sono giusti</button>' +

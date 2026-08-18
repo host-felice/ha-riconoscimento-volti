@@ -6,6 +6,10 @@ aritmetica scritta nello standard ICAO 9303, e la facciamo qui: ogni campo
 importante porta con se' una cifra di controllo, e quella cifra dice se il
 campo si puo' usare o va fatto correggere all'ospite.
 """
+import gc
+import threading
+import time
+
 import cv2
 import numpy as np
 
@@ -24,7 +28,21 @@ FORMATI = {
     (2, 44): "TD3",   # passaporto
 }
 
+# La prima lettera dice che documento e', secondo lo standard. Il resto della
+# sigla cambia da paese a paese e non serve a noi.
+TIPI = {
+    "P": "passaporto",
+    "I": "carta d'identita'",
+    "A": "carta d'identita'",
+    "C": "carta d'identita'",
+    "V": "visto",
+    "D": "patente",
+}
+
 _lettore = None
+_ultimo_uso = 0.0
+_serratura = threading.Lock()
+MINUTI_DI_PAZIENZA = 10
 
 
 class NessunaMRZ(Exception):
@@ -41,14 +59,46 @@ def _lettore_pronto():
     Sono trecento megabyte di roba: chi usa solo il riconoscimento dei volti
     non deve pagarli.
     """
+    global _lettore, _ultimo_uso
+    with _serratura:
+        if _lettore is None:
+            try:
+                from mrzscanner import MRZScanner
+                _lettore = MRZScanner()
+            except Exception as guaio:
+                raise LettoreAssente("il lettore della MRZ non si carica: %s" % guaio)
+        _ultimo_uso = time.time()
+        return _lettore
+
+
+def restituisci_memoria():
+    """Chiede alla libreria di sistema di ridare al sistema quello che avanza.
+
+    Python libera la memoria ma la tiene per se': su un servizio che sta acceso
+    per settimane la differenza si vede nel conto dell'add-on, non nel codice.
+    """
+    gc.collect()
+    try:
+        import ctypes
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:
+        pass
+
+
+def libera_se_inattivo():
+    """Scarica il lettore della MRZ se non lo cerca nessuno da un po'.
+
+    Sono centinaia di megabyte per un lavoro che capita due volte a
+    prenotazione: tenerli occupati tutto l'anno non ha senso. Si ricarica da
+    solo alla richiesta dopo, in pochi secondi.
+    """
     global _lettore
-    if _lettore is None:
-        try:
-            from mrzscanner import MRZScanner
-            _lettore = MRZScanner()
-        except Exception as guaio:
-            raise LettoreAssente("il lettore della MRZ non si carica: %s" % guaio)
-    return _lettore
+    with _serratura:
+        if _lettore is None or time.time() - _ultimo_uso < MINUTI_DI_PAZIENZA * 60:
+            return False
+        _lettore = None
+    restituisci_memoria()
+    return True
 
 
 def cifra_di_controllo(testo):
@@ -226,8 +276,11 @@ def analizza(dati_binari):
                 break
             continue
         sbagliati = [c for c, v in campi.items() if v["verificato"] is False]
+        sigla = campi["tipo_documento"]["valore"]
         esito = {
             "formato": formato,
+            "tipo_documento": TIPI.get(sigla[:1], "documento non riconosciuto"),
+            "sigla_documento": sigla,
             "righe": righe,
             "campi": campi,
             "da_correggere": sbagliati,
