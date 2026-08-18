@@ -5,6 +5,7 @@ Due modelli, nessun database, nessuno stato. Chi chiama decide cosa farne.
 """
 import os
 import threading
+import time
 
 import numpy as np
 import cv2
@@ -28,10 +29,46 @@ LATO_LUNGO_MAX = 1600     # oltre non serve, e le foto dei telefoni sono enormi
 LATO_SECONDA_PASSATA = 640
 FIDUCIA_MINIMA = 0.6
 
-_rete = cv2.dnn.readNetFromONNX(ARCFACE)
+_rete = None
+_ultimo_uso = 0.0
 # Una richiesta alla volta dentro la rete: il server ne serve piu' di una insieme
 # e questa non e' fatta per essere usata da due parti nello stesso momento.
 _una_alla_volta = threading.Lock()
+
+# Dopo quanto silenzio il modello si chiude. Fra un check-in e l'altro passano
+# giorni, dentro un check-in le richieste sono a raffica: venti minuti stanno
+# larghi nel primo caso e non si fanno mai sentire nel secondo.
+MINUTI_DI_PAZIENZA = 20
+
+
+def _rete_pronta():
+    """Il modello si apre alla prima faccia, non all'avvio.
+
+    All'avvio il file verrebbe solo letto, e sarebbero centosessanta megabyte.
+    Le aree di lavoro dei suoi strati nascono alla prima misurazione e sono
+    seicento: quelle sono il conto vero, e si pagano solo quando servono.
+    Da chiamare con la serratura gia' presa.
+    """
+    global _rete, _ultimo_uso
+    if _rete is None:
+        _rete = cv2.dnn.readNetFromONNX(ARCFACE)
+    _ultimo_uso = time.time()
+    return _rete
+
+
+def chiudi_se_inattiva():
+    """Chiude il modello se non lo cerca nessuno da un po'.
+
+    Si riapre da solo alla richiesta dopo. Quella richiesta paga qualche
+    secondo in piu', ed e' il motivo per cui la pazienza e' lunga: alla porta
+    l'ospite sta aspettando.
+    """
+    global _rete
+    with _una_alla_volta:
+        if _rete is None or time.time() - _ultimo_uso < MINUTI_DI_PAZIENZA * 60:
+            return False
+        _rete = None
+    return True
 
 
 class NessunVolto(Exception):
@@ -87,8 +124,9 @@ def vettore(img, punti):
     blob = cv2.dnn.blobFromImage(ritaglio, 1.0 / 127.5, (112, 112),
                                  (127.5, 127.5, 127.5), swapRB=True)
     with _una_alla_volta:
-        _rete.setInput(blob)
-        v = _rete.forward().flatten()
+        rete = _rete_pronta()
+        rete.setInput(blob)
+        v = rete.forward().flatten()
     return v / np.linalg.norm(v)
 
 

@@ -10,6 +10,7 @@ import hmac
 import json
 import logging
 import os
+import threading
 import time
 
 from flask import Flask, Response, jsonify, request, send_from_directory
@@ -20,7 +21,7 @@ import cv2
 import mrz
 import volti
 
-VERSIONE = "0.7.1"
+VERSIONE = "0.7.2"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 PREDEFINITE = {"soglia": 0.4, "volto_minimo_px": 80, "parola": "", "log_level": "info"}
@@ -64,6 +65,19 @@ def _memoria_mb():
     except (IOError, OSError, ValueError):
         pass
     return None
+
+
+def _guardiano():
+    """Ogni minuto guarda se il modello dei volti si puo' chiudere."""
+    while True:
+        time.sleep(60)
+        try:
+            if volti.chiudi_se_inattiva():
+                mrz.restituisci_memoria()
+                log.info("modello dei volti chiuso per inattivita', memoria %s MB",
+                         _memoria_mb())
+        except Exception as guaio:
+            log.warning("il guardiano della memoria e' inciampato: %s", guaio)
 
 
 CHIUSA = """<!DOCTYPE html><html lang="it"><head><meta charset="utf-8">
@@ -394,6 +408,7 @@ def leggi_mrz():
 
 if __name__ == "__main__":
     porta = int(os.environ.get("PORTA", 8099))
+    threading.Thread(target=_guardiano, daemon=True).start()
     log.info("in ascolto sulla porta %d, soglia %.2f, memoria %s MB",
              porta, float(OPZIONI["soglia"]), _memoria_mb())
     serve(app, host="0.0.0.0", port=porta, threads=2)
