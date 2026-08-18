@@ -78,10 +78,7 @@
 <div class="passo" id="passo_doc">
   <h2>1. Il documento</h2>
   <p>Il lato con la fotografia: il fronte della carta d'identità, la pagina dei dati del passaporto. Riempi il riquadro e tieni il telefono parallelo al documento, non di sbieco.</p>
-  <div class="bottoni">
-    <button data-camera="documento">Fotocamera</button>
-    <button class="chiaro" data-file="documento">Scegli un file</button>
-  </div>
+  <button data-camera="documento">Apri la fotocamera</button>
   <div class="mirino" id="mirino_documento">
     <div class="inquadratura">
       <video playsinline muted></video>
@@ -92,17 +89,13 @@
       <button class="chiaro" data-annulla="documento">Annulla</button>
     </div>
   </div>
-  <input type="file" id="file_documento" accept="image/*" capture="environment">
   <img class="anteprima" id="ant_documento" alt="">
 </div>
 
 <div class="passo" id="passo_self">
   <h2>2. Il selfie</h2>
   <p>Tutta la testa dentro l'ovale, capelli e mento compresi, senza toccarne i bordi. Se la faccia riempie lo schermo il riconoscimento fatica: allontana il telefono.</p>
-  <div class="bottoni">
-    <button data-camera="selfie">Fotocamera</button>
-    <button class="chiaro" data-file="selfie">Scegli un file</button>
-  </div>
+  <button data-camera="selfie">Apri la fotocamera</button>
   <div class="mirino" id="mirino_selfie">
     <div class="inquadratura">
       <video playsinline muted></video>
@@ -113,19 +106,37 @@
       <button class="chiaro" data-annulla="selfie">Annulla</button>
     </div>
   </div>
-  <input type="file" id="file_selfie" accept="image/*" capture="user">
   <img class="anteprima" id="ant_selfie" alt="">
 </div>
 
 <button id="vai" disabled>Confronta</button>
+
+<div class="passo" id="passo_mrz" style="margin-top:1.6rem">
+  <h2>3. Le due righe di caratteri</h2>
+  <p>Il lato dove stanno le righe fitte di lettere e simboli: il retro della carta d'identità, la stessa pagina dei dati del passaporto. Riempi il riquadro, tieni il telefono dritto e occhio ai riflessi.</p>
+  <button data-camera="mrz">Apri la fotocamera</button>
+  <div class="mirino" id="mirino_mrz">
+    <div class="inquadratura">
+      <video playsinline muted></video>
+      <div class="guida documento"><div class="forma"></div><span>le righe dentro il riquadro</span></div>
+    </div>
+    <div class="bottoni" style="margin-top:.6rem">
+      <button data-scatta="mrz">Scatta</button>
+      <button class="chiaro" data-annulla="mrz">Annulla</button>
+    </div>
+  </div>
+  <img class="anteprima" id="ant_mrz" alt="">
+  <div id="esito_mrz"></div>
+</div>
 <div id="esito"></div>
 
 <p class="nota">Banco di prova del guest portal. Il punteggio va da 0 a 1: sopra la soglia il sistema considera che sia la stessa persona.</p>
 
 <script>
 const LATO = 1600;
-const foto = { documento: null, selfie: null };
-const flussi = { documento: null, selfie: null };
+const LATO_MRZ = 2000;   // i caratteri sono piccoli, qui la risoluzione serve
+const foto = { documento: null, selfie: null, mrz: null };
+const flussi = { documento: null, selfie: null, mrz: null };
 
 const parola = new URLSearchParams(location.search).get("parola")
             || sessionStorage.getItem("parola") || "";
@@ -146,8 +157,7 @@ async function accendi(chiave) {
     });
   } catch (e) {
     mostra(avviso("la fotocamera non si apre (" + e.name + "). "
-      + "Sui computer serve un collegamento sicuro e il permesso del browser: "
-      + "intanto puoi scegliere un file."));
+      + "Serve un collegamento sicuro (https) e il permesso del browser."));
     return;
   }
   video.srcObject = flussi[chiave];
@@ -167,31 +177,11 @@ function scatta(chiave) {
   const video = document.getElementById("mirino_" + chiave).querySelector("video");
   const w = video.videoWidth, h = video.videoHeight;
   const tela = document.createElement("canvas");
-  const scala = Math.min(1, LATO / Math.max(w, h));
+  const scala = Math.min(1, (chiave === "mrz" ? LATO_MRZ : LATO) / Math.max(w, h));
   tela.width = Math.round(w * scala); tela.height = Math.round(h * scala);
   tela.getContext("2d").drawImage(video, 0, 0, tela.width, tela.height);
   spegni(chiave);
   tela.toBlob(b => tieni(chiave, b, tela.toDataURL("image/jpeg", 0.5)), "image/jpeg", 0.88);
-}
-
-/* ---- file dal disco ---- */
-
-function daFile(chiave, file) {
-  const lettore = new FileReader();
-  lettore.onload = e => {
-    const img = new Image();
-    img.onload = () => {
-      let w = img.width, h = img.height;
-      const scala = Math.min(1, LATO / Math.max(w, h));
-      w = Math.round(w * scala); h = Math.round(h * scala);
-      const tela = document.createElement("canvas");
-      tela.width = w; tela.height = h;
-      tela.getContext("2d").drawImage(img, 0, 0, w, h);
-      tela.toBlob(b => tieni(chiave, b, tela.toDataURL("image/jpeg", 0.5)), "image/jpeg", 0.88);
-    };
-    img.src = e.target.result;
-  };
-  lettore.readAsDataURL(file);
 }
 
 function tieni(chiave, blob, anteprima) {
@@ -199,20 +189,15 @@ function tieni(chiave, blob, anteprima) {
   const ant = document.getElementById("ant_" + chiave);
   ant.src = anteprima; ant.style.display = "block";
   document.getElementById("vai").disabled = !(foto.documento && foto.selfie);
+  if (chiave === "mrz") leggiMrz();
 }
 
 document.addEventListener("click", ev => {
   const b = ev.target.closest("button");
   if (!b) return;
   if (b.dataset.camera) accendi(b.dataset.camera);
-  if (b.dataset.file) document.getElementById("file_" + b.dataset.file).click();
   if (b.dataset.scatta) scatta(b.dataset.scatta);
   if (b.dataset.annulla) spegni(b.dataset.annulla);
-});
-["documento", "selfie"].forEach(chiave => {
-  document.getElementById("file_" + chiave).addEventListener("change", ev => {
-    if (ev.target.files[0]) daFile(chiave, ev.target.files[0]);
-  });
 });
 
 /* ---- il confronto ---- */
@@ -237,6 +222,54 @@ document.getElementById("vai").addEventListener("click", async () => {
 });
 
 function mostra(html) { document.getElementById("esito").innerHTML = html; }
+
+async function leggiMrz() {
+  const esito = document.getElementById("esito_mrz");
+  esito.innerHTML = '<p style="margin-top:.8rem">Sto leggendo le righe...</p>';
+  const dati = new FormData();
+  dati.append("immagine", foto.mrz, "mrz.jpg");
+  try {
+    const risposta = await fetch("mrz", {
+      method: "POST", body: dati, headers: parola ? { "X-Parola": parola } : {}
+    });
+    const r = await risposta.json();
+    esito.innerHTML = risposta.ok ? schedaMrz(r) : avviso(r.errore);
+  } catch (e) {
+    esito.innerHTML = avviso("non sono riuscito a parlare con il server: " + e.message);
+  }
+}
+
+const NOMI_CAMPI = {
+  cognome: "cognome", nome: "nome", sesso: "sesso",
+  data_nascita: "data di nascita", cittadinanza: "cittadinanza",
+  numero_documento: "numero documento", numero_supporto: "numero di supporto",
+  numero_personale: "numero personale", scadenza: "scadenza",
+  tipo_documento: "tipo documento", stato_emissione: "stato di rilascio",
+  tutto_insieme: "controllo finale"
+};
+
+function schedaMrz(r) {
+  let righe = "";
+  for (const [chiave, campo] of Object.entries(r.campi)) {
+    const segno = campo.verificato === true ? "&#10003;"
+                : campo.verificato === false ? "&#10007;" : "";
+    const colore = campo.verificato === false ? ' style="color:#b3261e"' : "";
+    righe += "<tr" + colore + "><td>" + (NOMI_CAMPI[chiave] || chiave) + "</td><td><b>"
+           + (campo.valore || "&mdash;") + "</b> " + segno + "</td></tr>";
+  }
+  const avvertenza = r.affidabile
+    ? ""
+    : '<div class="avviso">I campi segnati in rosso non tornano con la loro cifra di controllo: '
+      + "vanno riscritti a mano, gli altri si possono usare come sono.</div>";
+  return '<div style="margin-top:.8rem">' +
+    '<div class="verdetto ' + (r.affidabile ? "si" : "no") + '">' +
+      (r.affidabile ? "Letta e verificata" : "Letta, ma qualcosa non torna") + "</div>" +
+    "<p>formato " + r.formato + ", " + r.millisecondi + " ms</p>" + avvertenza +
+    '<table class="dettagli">' + righe + "</table>" +
+    '<pre style="font-size:.72rem;overflow-x:auto;margin-top:.8rem">' +
+      r.righe.join("
+") + "</pre></div>";
+}
 
 function avviso(testo) {
   return '<div class="passo"><div class="verdetto no">Non ha funzionato</div><p>' + testo + "</p></div>";

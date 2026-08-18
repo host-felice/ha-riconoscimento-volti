@@ -15,9 +15,10 @@ import time
 from flask import Flask, Response, jsonify, request, send_from_directory
 from waitress import serve
 
+import mrz
 import volti
 
-VERSIONE = "0.3.1"
+VERSIONE = "0.4.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 PREDEFINITE = {"soglia": 0.4, "volto_minimo_px": 80, "parola": "", "log_level": "info"}
@@ -106,6 +107,11 @@ def _errore_nostro(e):
 
 @app.errorhandler(volti.NessunVolto)
 def _errore_senza_volto(e):
+    return jsonify({"errore": str(e)}), 422
+
+
+@app.errorhandler(mrz.NessunaMRZ)
+def _errore_senza_mrz(e):
     return jsonify({"errore": str(e)}), 422
 
 
@@ -269,6 +275,29 @@ def riconosci():
         "soglia": soglia,
         "tutti": punteggi,
         "volto": _senza_vettore(esito),
+        "millisecondi": _millisecondi(partenza),
+    })
+
+
+@app.route("/mrz", methods=["POST"])
+def leggi_mrz():
+    """Le righe di caratteri in fondo al documento, e cosa dicono.
+
+    Torna anche quali campi hanno passato la loro cifra di controllo: sono i
+    soli che si possono scrivere nel modulo senza farli ricontrollare a mano.
+    """
+    partenza = time.time()
+    righe, messaggio = mrz.leggi(_immagine("immagine"))
+    formato, campi = mrz.interpreta(righe)
+    sbagliati = [c for c, v in campi.items() if v["verificato"] is False]
+    log.info("mrz: %s, %d righe, campi da correggere %s", formato, len(righe), sbagliati)
+    return jsonify({
+        "formato": formato,
+        "righe": righe,
+        "campi": campi,
+        "da_correggere": sbagliati,
+        "affidabile": not sbagliati,
+        "messaggio_lettore": str(messaggio),
         "millisecondi": _millisecondi(partenza),
     })
 

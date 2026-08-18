@@ -4,7 +4,7 @@ FROM python:3.12-slim-bookworm
 
 # OpenCV senza interfaccia grafica ha bisogno solo di questa, non di Qt ne' di GStreamer.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libglib2.0-0 curl unzip ca-certificates \
+    && apt-get install -y --no-install-recommends libglib2.0-0 libturbojpeg0 curl unzip ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /tmp/requirements.txt
@@ -21,12 +21,16 @@ RUN mkdir -p /modelli \
     && rm -f /tmp/buffalo_l.zip \
     && apt-get purge -y curl unzip && apt-get autoremove -y
 
+# Anche i modelli della MRZ una volta sola qui: si scaricano da Google Drive,
+# e un add-on che parte non deve dipendere da quel viaggio.
+RUN python3 -c "from mrzscanner import MRZScanner; MRZScanner()"
+
 COPY app /app
 
 LABEL \
   io.hass.name="Riconoscimento volti" \
   io.hass.description="Confronto documento-selfie e riconoscimento all'ingresso" \
   io.hass.type="addon" \
-  io.hass.version="0.3.1"
+  io.hass.version="0.4.0"
 
 CMD ["python3", "-u", "/app/server.py"]
