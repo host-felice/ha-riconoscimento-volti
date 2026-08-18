@@ -1,10 +1,11 @@
 # Debian, non Alpine: opencv, onnxruntime e i loro modelli non hanno pacchetti
 # pronti per musl. Il Supervisor propone la sua immagine di base, che e' Alpine,
 # e qui non serve.
-FROM python:3.12-slim-bookworm
+FROM python:3.12-slim-trixie
 
-# Il minimo di sistema: una libreria per opencv senza interfaccia, una per il
-# lettore della MRZ che decodifica i jpeg per conto suo.
+# Debian 13 e non 12 per una ragione sola: il lettore della MRZ decodifica i
+# jpeg da se' e pretende libjpeg-turbo 3, che su Debian 12 non c'e'.
+# Il resto di sistema e' una libreria per opencv senza interfaccia.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        libglib2.0-0 libturbojpeg0 curl unzip ca-certificates \
