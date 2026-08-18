@@ -21,7 +21,7 @@ import cv2
 import mrz
 import volti
 
-VERSIONE = "0.5.0"
+VERSIONE = "0.6.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 PREDEFINITE = {"soglia": 0.4, "volto_minimo_px": 80, "parola": "", "log_level": "info"}
@@ -185,6 +185,47 @@ def _immagine(nome):
     return dati
 
 
+def _immagini(nome):
+    """Tutte le immagini arrivate con quel nome: una, o una raffica."""
+    corpo = _corpo_json()
+    if corpo is not None:
+        grezze = corpo.get(nome)
+        if isinstance(grezze, str):
+            grezze = [grezze]
+        if not grezze:
+            raise Errore("manca l'immagine '%s'" % nome)
+        try:
+            return [base64.b64decode(g, validate=True) for g in grezze]
+        except Exception:
+            raise Errore("una delle immagini '%s' non e' base64 valido" % nome)
+    inviate = [f.read() for f in request.files.getlist(nome)]
+    inviate = [d for d in inviate if d]
+    if not inviate:
+        raise Errore("manca l'immagine '%s'" % nome)
+    return inviate
+
+
+def _attesi():
+    """La lista degli ospiti attesi, controllata."""
+    corpo = _corpo_json()
+    if corpo is not None:
+        attesi = corpo.get("attesi")
+    else:
+        grezzi = request.form.get("attesi")
+        if not grezzi:
+            raise Errore("manca il campo 'attesi'")
+        try:
+            attesi = json.loads(grezzi)
+        except ValueError:
+            raise Errore("'attesi' non e' un JSON valido")
+    if not isinstance(attesi, list) or not attesi:
+        raise Errore("'attesi' deve essere una lista non vuota")
+    for atteso in attesi:
+        if not isinstance(atteso, dict) or "nome" not in atteso or "vettore" not in atteso:
+            raise Errore("ogni atteso vuole 'nome' e 'vettore'")
+    return attesi
+
+
 def _soglia():
     """Quella scritta nelle opzioni, salvo che la richiesta ne chieda un'altra.
 
@@ -268,50 +309,61 @@ def confronta():
 
 @app.route("/riconosci", methods=["POST"])
 def riconosci():
-    """Lo scatto della telecamera contro gli ospiti attesi: chi si e' presentato?
+    """Chi degli ospiti attesi si e' presentato davanti alla telecamera.
+
+    Uno scatto puo' contenere piu' facce, perche' gli ospiti di una prenotazione
+    arrivano insieme, e si possono mandare piu' scatti di fila: per ogni ospite
+    resta il punteggio migliore fra tutte le facce di tutti gli scatti.
 
     Gli attesi arrivano nel campo 'attesi', una lista di {nome, vettore}. Chi
-    chiama decide chi metterci dentro: di solito gli ospiti delle prenotazioni
-    attive oggi, non tutti quelli che sono passati.
+    chiama decide chi metterci dentro: gli ospiti delle prenotazioni attive
+    oggi, non tutti quelli che sono passati.
     """
-    corpo = _corpo_json()
-    if corpo is not None:
-        attesi = corpo.get("attesi")
-    else:
-        grezzi = request.form.get("attesi")
-        if not grezzi:
-            raise Errore("manca il campo 'attesi'")
-        try:
-            attesi = json.loads(grezzi)
-        except ValueError:
-            raise Errore("'attesi' non e' un JSON valido")
-    if not isinstance(attesi, list) or not attesi:
-        raise Errore("'attesi' deve essere una lista non vuota")
-
     partenza = time.time()
-    esito = _analizza(_immagine("immagine"))
+    attesi = _attesi()
     soglia = _soglia()
-    punteggi = []
-    for atteso in attesi:
-        try:
-            punteggi.append({
-                "nome": atteso["nome"],
-                "somiglianza": volti.somiglianza(esito["vettore"], atteso["vettore"]),
-            })
-        except (TypeError, KeyError):
-            raise Errore("ogni atteso vuole 'nome' e 'vettore'")
-    punteggi.sort(key=lambda p: -p["somiglianza"])
 
-    migliore = punteggi[0]
-    riconosciuto = migliore["somiglianza"] >= soglia
-    log.info("riconosci: %s a %.4f contro soglia %.2f (%d attesi)",
-             migliore["nome"], migliore["somiglianza"], soglia, len(attesi))
+    scatti = _immagini("immagine")
+    facce = []
+    for dati in scatti:
+        try:
+            facce.extend(volti.tutti_i_volti(dati, int(OPZIONI["volto_minimo_px"])))
+        except volti.NessunVolto:
+            continue
+    if not facce:
+        raise volti.NessunVolto("nessun volto trovato in nessuno degli scatti")
+
+    # Per ogni faccia il suo miglior candidato, e per ogni atteso la sua
+    # miglior faccia: sono due domande diverse e servono tutte e due.
+    per_atteso = {a["nome"]: 0.0 for a in attesi}
+    sconosciuti = []
+    for faccia in facce:
+        migliore = ("", -1.0)
+        for atteso in attesi:
+            punteggio = volti.somiglianza(faccia["vettore"], atteso["vettore"])
+            if punteggio > per_atteso[atteso["nome"]]:
+                per_atteso[atteso["nome"]] = punteggio
+            if punteggio > migliore[1]:
+                migliore = (atteso["nome"], punteggio)
+        if migliore[1] < soglia:
+            sconosciuti.append({
+                "larghezza_px": faccia["larghezza_px"],
+                "somiglianza_migliore": migliore[1],
+                "assomiglia_a": migliore[0],
+            })
+
+    punteggi = sorted(({"nome": n, "somiglianza": round(p, 4)} for n, p in per_atteso.items()),
+                      key=lambda x: -x["somiglianza"])
+    riconosciuti = [p for p in punteggi if p["somiglianza"] >= soglia]
+    log.info("riconosci: %d facce in %d scatti, riconosciuti %s, sconosciuti %d",
+             len(facce), len(scatti), [r["nome"] for r in riconosciuti], len(sconosciuti))
     return jsonify({
-        "riconosciuto": migliore["nome"] if riconosciuto else None,
-        "somiglianza": migliore["somiglianza"],
-        "soglia": soglia,
+        "riconosciuti": riconosciuti,
+        "sconosciuti": sconosciuti,
         "tutti": punteggi,
-        "volto": _senza_vettore(esito),
+        "volti_trovati": len(facce),
+        "scatti": len(scatti),
+        "soglia": soglia,
         "millisecondi": _millisecondi(partenza),
     })
 

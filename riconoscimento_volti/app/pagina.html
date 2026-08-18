@@ -156,13 +156,35 @@
 <button id="vai" disabled>Controlla</button>
 <div id="esito"></div>
 
+<div class="passo" id="passo_porta">
+  <h2>Alla porta</h2>
+  <p id="chi_e_atteso">Nessun ospite registrato: fai prima il controllo qui sopra, e chi risulta sé stesso finisce fra gli attesi di questa prenotazione.</p>
+  <div class="bottoni">
+    <button data-camera="porta" disabled id="apri_porta">Apri la fotocamera</button>
+    <button class="chiaro" id="svuota">Svuota la lista</button>
+  </div>
+  <div class="mirino" id="mirino_porta">
+    <div class="inquadratura">
+      <video playsinline muted></video>
+      <div class="guida"><span>come se fosse la telecamera sopra la porta</span></div>
+    </div>
+    <div class="avviso risoluzione" style="display:none"></div>
+    <div class="bottoni" style="margin-top:.6rem">
+      <button data-scatta="porta">Scatta tre foto</button>
+      <button class="chiaro" data-annulla="porta">Annulla</button>
+    </div>
+  </div>
+  <div id="esito_porta"></div>
+</div>
+
 <p class="nota">Banco di prova del guest portal. Il punteggio va da 0 a 1: sopra la soglia il sistema considera che sia la stessa persona.</p>
 
 <script>
 const LATO = 1600;
 const LATO_MRZ = 3000;   // i caratteri sono piccoli, qui la risoluzione serve
 const foto = { documento: null, retro: null, selfie: null };
-const flussi = { documento: null, retro: null, selfie: null };
+const flussi = { documento: null, retro: null, selfie: null, porta: null };
+let attesi = JSON.parse(localStorage.getItem("attesi") || "[]");
 let tipo = null;
 
 const parola = new URLSearchParams(location.search).get("parola")
@@ -270,7 +292,8 @@ document.addEventListener("click", ev => {
   if (!b) return;
   if (b.dataset.tipo) scegliTipo(b.dataset.tipo);
   if (b.dataset.camera) accendi(b.dataset.camera);
-  if (b.dataset.scatta) scatta(b.dataset.scatta);
+  if (b.dataset.scatta === "porta") raffica();
+  else if (b.dataset.scatta) scatta(b.dataset.scatta);
   if (b.dataset.annulla) spegni(b.dataset.annulla);
   if (b.id === "conferma") conferma(b);
 });
@@ -290,6 +313,7 @@ document.getElementById("vai").addEventListener("click", async () => {
 
   const [volto, dati] = await Promise.all([chiama("confronta", perVolto), chiama("mrz", perMrz)]);
   mostra(schedaVolto(volto) + schedaMrz(dati));
+  if (volto.verificato && volto.vettore_selfie) registra(volto.vettore_selfie, dati);
 
   bottone.disabled = false; bottone.textContent = "Controlla";
 });
@@ -382,6 +406,84 @@ function conferma(bottone) {
 
 function riga(chiave, valore) {
   return "<tr><td>" + chiave + "</td><td>" + valore + "</td></tr>";
+}
+
+/* ---- gli ospiti attesi di questa prenotazione, tenuti nel telefono ---- */
+
+function registra(vettore, dati) {
+  const nome = (dati && dati.campi && !dati.errore)
+    ? [dati.campi.nome.valore, dati.campi.cognome.valore].filter(Boolean).join(" ")
+    : "ospite " + (attesi.length + 1);
+  attesi = attesi.filter(a => a.nome !== nome).concat([{ nome: nome, vettore: vettore }]);
+  localStorage.setItem("attesi", JSON.stringify(attesi));
+  scriviAttesi();
+}
+
+function scriviAttesi() {
+  const dove = document.getElementById("chi_e_atteso");
+  document.getElementById("apri_porta").disabled = attesi.length === 0;
+  dove.textContent = attesi.length
+    ? "Attesi in questa prenotazione: " + attesi.map(a => a.nome).join(", ")
+      + ". Tieni il telefono in alto, come la telecamera sopra la porta, e mettetevi davanti anche in più di uno."
+    : "Nessun ospite registrato: fai prima il controllo qui sopra, e chi risulta sé stesso finisce fra gli attesi di questa prenotazione.";
+}
+scriviAttesi();
+
+document.getElementById("svuota").addEventListener("click", () => {
+  attesi = []; localStorage.removeItem("attesi");
+  document.getElementById("esito_porta").innerHTML = "";
+  scriviAttesi();
+});
+
+/* ---- la raffica davanti alla porta ---- */
+
+async function raffica() {
+  const video = document.getElementById("mirino_porta").querySelector("video");
+  const esito = document.getElementById("esito_porta");
+  const scatti = [];
+  for (let i = 0; i < 3; i++) {
+    esito.innerHTML = "<p>scatto " + (i + 1) + " di 3...</p>";
+    scatti.push(await fotogramma(video));
+    if (i < 2) await new Promise(r => setTimeout(r, 700));
+  }
+  spegni("porta");
+  esito.innerHTML = "<p>Guardo chi c'è nei tre scatti...</p>";
+  const dati = new FormData();
+  scatti.forEach((s, i) => dati.append("immagine", s, "porta" + i + ".jpg"));
+  dati.append("attesi", JSON.stringify(attesi));
+  const r = await chiama("riconosci", dati);
+  esito.innerHTML = schedaPorta(r);
+}
+
+function fotogramma(video) {
+  const w = video.videoWidth, h = video.videoHeight;
+  const scala = Math.min(1, LATO / Math.max(w, h));
+  const tela = document.createElement("canvas");
+  tela.width = Math.round(w * scala); tela.height = Math.round(h * scala);
+  tela.getContext("2d").drawImage(video, 0, 0, tela.width, tela.height);
+  return new Promise(r => tela.toBlob(r, "image/jpeg", 0.88));
+}
+
+function schedaPorta(r) {
+  if (r.errore) return avviso("alla porta non ho visto nessuno: " + r.errore);
+  const dentro = r.riconosciuti.length;
+  let righe = "";
+  for (const p of r.tutti) {
+    const su = p.somiglianza >= r.soglia;
+    righe += "<tr" + (su ? ' style="color:#1a7f37"' : "") + "><td>" + p.nome +
+             "</td><td><b>" + p.somiglianza.toFixed(3) + "</b> " + (su ? "&#10003;" : "") + "</td></tr>";
+  }
+  const estranei = r.sconosciuti.length
+    ? '<div class="avviso">' + r.sconosciuti.length + " faccia/e non fra gli attesi (la migliore somiglia a "
+      + r.sconosciuti[0].assomiglia_a + " per " + r.sconosciuti[0].somiglianza_migliore.toFixed(3)
+      + "). Alla porta vuol dire: c'è qualcuno che non ha fatto il check-in.</div>"
+    : "";
+  return '<div style="margin-top:.8rem">' +
+    '<div class="verdetto ' + (dentro ? "si" : "no") + '">' +
+      (dentro ? "Riconosciuti " + dentro + " su " + r.tutti.length : "Nessuno riconosciuto") + "</div>" +
+    "<p>" + r.volti_trovati + " facce in " + r.scatti + " scatti, soglia " + r.soglia.toFixed(2) +
+    ", " + r.millisecondi + " ms</p>" + estranei +
+    '<table class="dettagli">' + righe + "</table></div>";
 }
 </script>
 </body>

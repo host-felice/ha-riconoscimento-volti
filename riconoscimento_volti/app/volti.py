@@ -102,6 +102,39 @@ def _ingrandisci(volto, fattore):
     return volto
 
 
+def tutti_i_volti(dati_binari, volto_minimo_px=80):
+    """Ogni faccia dell'immagine con il suo vettore, dalla piu' grande in giu'.
+
+    Serve alla porta: gli ospiti di una prenotazione arrivano insieme, e uno
+    scatto solo puo' contenerne quattro. La faccia piu' grande e' quella davanti,
+    non necessariamente quella che ci interessa.
+    """
+    img = leggi(dati_binari)
+    trovati = _cerca(img, volto_minimo_px)
+    if not trovati:
+        raise NessunVolto("nessun volto trovato")
+    img_giusta, volti_trovati, seconda = trovati
+    return [{
+        "vettore": vettore(img_giusta, v["punti"]).tolist(),
+        "riquadro": v["riquadro"],
+        "fiducia": v["fiducia"],
+        "larghezza_px": v["larghezza_px"],
+        "seconda_passata": seconda,
+    } for v in volti_trovati]
+
+
+def _cerca(img, volto_minimo_px):
+    """I volti dell'immagine, riprovando in piccolo se al primo giro non c'e' niente."""
+    volti = trova_volti(img, volto_minimo_px)
+    if volti:
+        return img, volti, False
+    piccola, scala = _rimpicciolisci(img, LATO_SECONDA_PASSATA)
+    if scala >= 1:
+        return None
+    volti = [_ingrandisci(v, 1.0 / scala) for v in trova_volti(piccola, volto_minimo_px * scala)]
+    return (img, volti, True) if volti else None
+
+
 def volto_principale(dati_binari, volto_minimo_px=80):
     """Il volto piu' grande dell'immagine, con il suo vettore e i suoi vicini.
 
