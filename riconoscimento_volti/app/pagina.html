@@ -18,18 +18,19 @@
     border: 1px solid #e2ded7; border-radius: 14px; padding: 1rem;
     background: #fff; margin-bottom: 1rem;
   }
+  .passo.spento { display: none; }
   .passo h2 { font-size: 1.05rem; margin: 0 0 .2rem; }
   .passo p { margin: .2rem 0 .8rem; color: #6a6660; font-size: .93rem; }
   .bottoni { display: flex; gap: .6rem; }
   .bottoni button { flex: 1; }
   button {
-    padding: .8rem; font-size: 1rem; font-weight: 600;
+    padding: .8rem; font-size: 1rem; font-weight: 600; width: 100%;
     border: 0; border-radius: 12px; background: #1c1b19; color: #fff; cursor: pointer;
   }
   button.chiaro { background: #ece8e0; color: #1c1b19; }
+  button.scelto { outline: 3px solid #1a7f37; }
   button:disabled { background: #c9c3b8; color: #fff; cursor: default; }
-  #vai { width: 100%; padding: .95rem; font-size: 1.05rem; }
-  input[type=file] { display: none; }
+  #vai { padding: .95rem; font-size: 1.05rem; }
   .mirino { display: none; margin-top: .8rem; }
   .inquadratura { position: relative; line-height: 0; }
   .inquadratura video { width: 100%; border-radius: 10px; display: block; background: #000; }
@@ -37,11 +38,9 @@
     position: absolute; inset: 0; pointer-events: none;
     display: flex; align-items: center; justify-content: center;
   }
-  .guida .forma {
-    border: 3px solid rgba(255,255,255,.9);
-    box-shadow: 0 0 0 100vmax rgba(0,0,0,.35);
-  }
+  .guida .forma { border: 3px solid rgba(255,255,255,.9); box-shadow: 0 0 0 100vmax rgba(0,0,0,.35); }
   .guida.documento .forma { width: 82%; aspect-ratio: 1.585; border-radius: 10px; }
+  .guida.pagina .forma { width: 86%; aspect-ratio: 1.42; border-radius: 6px; }
   .guida.viso { align-items: flex-start; padding-top: 12%; }
   .guida.viso .forma { width: 46%; aspect-ratio: .75; border-radius: 50%; }
   .guida span {
@@ -57,15 +56,24 @@
   .punteggio { font-variant-numeric: tabular-nums; font-size: 2.6rem; font-weight: 700; }
   .dettagli { color: #6a6660; font-size: .88rem; margin-top: .6rem; }
   .dettagli td { padding: .1rem .6rem .1rem 0; vertical-align: top; }
-  .avviso { background: #fff4d6; border-radius: 10px; padding: .7rem .9rem; margin-top: .8rem; font-size: .9rem; }
+  .campo { display: flex; align-items: center; gap: .6rem; margin-bottom: .5rem; }
+  .campo label { flex: 0 0 9.5rem; font-size: .9rem; color: #6a6660; }
+  .campo input {
+    flex: 1; min-width: 0; padding: .5rem .6rem; font-size: 1rem;
+    border: 1px solid #c9c3b8; border-radius: 8px; background: #fff; color: inherit;
+  }
+  .campo.storto input { border-color: #b3261e; border-width: 2px; }
+  .avviso { background: #fff4d6; border-radius: 10px; padding: .7rem .9rem; margin: .8rem 0; font-size: .9rem; }
   .nota { font-size: .85rem; color: #6a6660; margin-top: 1.6rem; }
+  pre { font-size: .72rem; overflow-x: auto; margin-top: .8rem; }
   @media (prefers-color-scheme: dark) {
     body { background: #16150f; color: #ece8e0; }
     .passo { background: #201f18; border-color: #35332a; }
-    .sotto, .passo p, .dettagli, .nota { color: #a09a8e; }
+    .sotto, .passo p, .dettagli, .nota, .campo label { color: #a09a8e; }
     button { background: #ece8e0; color: #16150f; }
     button.chiaro { background: #35332a; color: #ece8e0; }
     button:disabled { background: #46443a; color: #8d887c; }
+    .campo input { background: #16150f; border-color: #46443a; }
     .avviso { background: #3a3216; }
   }
 </style>
@@ -73,11 +81,20 @@
 <body>
 
 <h1>Prova del riconoscimento</h1>
-<p class="sotto">Due foto, un punteggio. Non resta niente: le immagini vengono misurate e buttate, e questa pagina non salva nulla da nessuna parte.</p>
+<p class="sotto">Il documento, un selfie, e la macchina dice se sei tu e cosa c'è scritto. Non resta niente: le immagini vengono misurate e buttate.</p>
 
-<div class="passo" id="passo_doc">
-  <h2>1. Il documento</h2>
-  <p>Il lato con la fotografia: il fronte della carta d'identità, la pagina dei dati del passaporto. Riempi il riquadro e tieni il telefono parallelo al documento, non di sbieco.</p>
+<div class="passo" id="passo_tipo">
+  <h2>1. Che documento hai?</h2>
+  <p>Cambia quante foto servono: la carta d'identità ha la fotografia davanti e i caratteri dietro, il passaporto ha tutto sulla stessa pagina.</p>
+  <div class="bottoni">
+    <button class="chiaro" data-tipo="carta">Carta d'identità</button>
+    <button class="chiaro" data-tipo="passaporto">Passaporto</button>
+  </div>
+</div>
+
+<div class="passo spento" id="passo_documento">
+  <h2 id="titolo_documento">2. Il documento</h2>
+  <p id="testo_documento"></p>
   <button data-camera="documento">Apri la fotocamera</button>
   <div class="mirino" id="mirino_documento">
     <div class="inquadratura">
@@ -92,8 +109,25 @@
   <img class="anteprima" id="ant_documento" alt="">
 </div>
 
-<div class="passo" id="passo_self">
-  <h2>2. Il selfie</h2>
+<div class="passo spento" id="passo_retro">
+  <h2>3. Il retro, con le due righe di caratteri</h2>
+  <p>Il lato con le righe fitte di lettere e simboli. Riempi il riquadro, telefono dritto, occhio ai riflessi: sono quelle righe a compilare il modulo.</p>
+  <button data-camera="retro">Apri la fotocamera</button>
+  <div class="mirino" id="mirino_retro">
+    <div class="inquadratura">
+      <video playsinline muted></video>
+      <div class="guida documento"><div class="forma"></div><span>le righe dentro il riquadro</span></div>
+    </div>
+    <div class="bottoni" style="margin-top:.6rem">
+      <button data-scatta="retro">Scatta</button>
+      <button class="chiaro" data-annulla="retro">Annulla</button>
+    </div>
+  </div>
+  <img class="anteprima" id="ant_retro" alt="">
+</div>
+
+<div class="passo spento" id="passo_selfie">
+  <h2 id="titolo_selfie">4. Il selfie</h2>
   <p>Tutta la testa dentro l'ovale, capelli e mento compresi, senza toccarne i bordi. Se la faccia riempie lo schermo il riconoscimento fatica: allontana il telefono.</p>
   <button data-camera="selfie">Apri la fotocamera</button>
   <div class="mirino" id="mirino_selfie">
@@ -109,25 +143,7 @@
   <img class="anteprima" id="ant_selfie" alt="">
 </div>
 
-<button id="vai" disabled>Confronta</button>
-
-<div class="passo" id="passo_mrz" style="margin-top:1.6rem">
-  <h2>3. Le due righe di caratteri</h2>
-  <p>Il lato dove stanno le righe fitte di lettere e simboli: il retro della carta d'identità, la stessa pagina dei dati del passaporto. Riempi il riquadro, tieni il telefono dritto e occhio ai riflessi.</p>
-  <button data-camera="mrz">Apri la fotocamera</button>
-  <div class="mirino" id="mirino_mrz">
-    <div class="inquadratura">
-      <video playsinline muted></video>
-      <div class="guida documento"><div class="forma"></div><span>le righe dentro il riquadro</span></div>
-    </div>
-    <div class="bottoni" style="margin-top:.6rem">
-      <button data-scatta="mrz">Scatta</button>
-      <button class="chiaro" data-annulla="mrz">Annulla</button>
-    </div>
-  </div>
-  <img class="anteprima" id="ant_mrz" alt="">
-  <div id="esito_mrz"></div>
-</div>
+<button id="vai" disabled>Controlla</button>
 <div id="esito"></div>
 
 <p class="nota">Banco di prova del guest portal. Il punteggio va da 0 a 1: sopra la soglia il sistema considera che sia la stessa persona.</p>
@@ -135,12 +151,41 @@
 <script>
 const LATO = 1600;
 const LATO_MRZ = 2000;   // i caratteri sono piccoli, qui la risoluzione serve
-const foto = { documento: null, selfie: null, mrz: null };
-const flussi = { documento: null, selfie: null, mrz: null };
+const foto = { documento: null, retro: null, selfie: null };
+const flussi = { documento: null, retro: null, selfie: null };
+let tipo = null;
 
 const parola = new URLSearchParams(location.search).get("parola")
             || sessionStorage.getItem("parola") || "";
 if (parola) sessionStorage.setItem("parola", parola);
+
+/* ---- che documento ---- */
+
+function scegliTipo(scelto) {
+  tipo = scelto;
+  document.querySelectorAll("[data-tipo]").forEach(b =>
+    b.classList.toggle("scelto", b.dataset.tipo === scelto));
+  const carta = scelto === "carta";
+  document.getElementById("titolo_documento").textContent =
+    carta ? "2. Il fronte della carta" : "2. La pagina dei dati";
+  document.getElementById("testo_documento").textContent = carta
+    ? "Il lato con la tua fotografia. Riempi il riquadro e tieni il telefono parallelo alla carta, non di sbieco."
+    : "La pagina con la fotografia e, sotto, le due righe di caratteri: da questa sola foto esce tutto. Riempi il riquadro e tieni il telefono dritto.";
+  document.querySelector("#passo_documento .guida").className =
+    carta ? "guida documento" : "guida pagina";
+  document.getElementById("passo_documento").classList.remove("spento");
+  document.getElementById("passo_retro").classList.toggle("spento", !carta);
+  document.getElementById("passo_selfie").classList.remove("spento");
+  document.getElementById("titolo_selfie").textContent = carta ? "4. Il selfie" : "3. Il selfie";
+  if (!carta) foto.retro = null;
+  controllaPronto();
+}
+
+function controllaPronto() {
+  const serveRetro = tipo === "carta";
+  document.getElementById("vai").disabled =
+    !(tipo && foto.documento && foto.selfie && (!serveRetro || foto.retro));
+}
 
 /* ---- fotocamera dal vivo ---- */
 
@@ -176,106 +221,71 @@ function spegni(chiave) {
 function scatta(chiave) {
   const video = document.getElementById("mirino_" + chiave).querySelector("video");
   const w = video.videoWidth, h = video.videoHeight;
+  const grande = chiave === "retro" || (chiave === "documento" && tipo === "passaporto");
+  const scala = Math.min(1, (grande ? LATO_MRZ : LATO) / Math.max(w, h));
   const tela = document.createElement("canvas");
-  const scala = Math.min(1, (chiave === "mrz" ? LATO_MRZ : LATO) / Math.max(w, h));
   tela.width = Math.round(w * scala); tela.height = Math.round(h * scala);
   tela.getContext("2d").drawImage(video, 0, 0, tela.width, tela.height);
   spegni(chiave);
-  tela.toBlob(b => tieni(chiave, b, tela.toDataURL("image/jpeg", 0.5)), "image/jpeg", 0.88);
-}
-
-function tieni(chiave, blob, anteprima) {
-  foto[chiave] = blob;
-  const ant = document.getElementById("ant_" + chiave);
-  ant.src = anteprima; ant.style.display = "block";
-  document.getElementById("vai").disabled = !(foto.documento && foto.selfie);
-  if (chiave === "mrz") leggiMrz();
+  tela.toBlob(b => {
+    foto[chiave] = b;
+    const ant = document.getElementById("ant_" + chiave);
+    ant.src = tela.toDataURL("image/jpeg", 0.5); ant.style.display = "block";
+    controllaPronto();
+  }, "image/jpeg", 0.88);
 }
 
 document.addEventListener("click", ev => {
   const b = ev.target.closest("button");
   if (!b) return;
+  if (b.dataset.tipo) scegliTipo(b.dataset.tipo);
   if (b.dataset.camera) accendi(b.dataset.camera);
   if (b.dataset.scatta) scatta(b.dataset.scatta);
   if (b.dataset.annulla) spegni(b.dataset.annulla);
+  if (b.id === "conferma") conferma(b);
 });
 
-/* ---- il confronto ---- */
+/* ---- il controllo ---- */
 
 document.getElementById("vai").addEventListener("click", async () => {
   const bottone = document.getElementById("vai");
-  bottone.disabled = true; bottone.textContent = "Sto misurando...";
-  mostra("");
-  const dati = new FormData();
-  dati.append("documento", foto.documento, "documento.jpg");
-  dati.append("selfie", foto.selfie, "selfie.jpg");
-  try {
-    const risposta = await fetch("confronta", {
-      method: "POST", body: dati, headers: parola ? { "X-Parola": parola } : {}
-    });
-    const r = await risposta.json();
-    mostra(risposta.ok ? scheda(r) : avviso(r.errore));
-  } catch (e) {
-    mostra(avviso("non sono riuscito a parlare con il server: " + e.message));
-  }
-  bottone.disabled = false; bottone.textContent = "Confronta";
+  bottone.disabled = true; bottone.textContent = "Sto guardando...";
+  mostra("<p>Confronto il viso e leggo i caratteri, ci vuole qualche secondo.</p>");
+
+  const perVolto = new FormData();
+  perVolto.append("documento", foto.documento, "documento.jpg");
+  perVolto.append("selfie", foto.selfie, "selfie.jpg");
+  const perMrz = new FormData();
+  perMrz.append("immagine", tipo === "carta" ? foto.retro : foto.documento, "mrz.jpg");
+
+  const [volto, dati] = await Promise.all([chiama("confronta", perVolto), chiama("mrz", perMrz)]);
+  mostra(schedaVolto(volto) + schedaMrz(dati));
+
+  bottone.disabled = false; bottone.textContent = "Controlla";
 });
 
-function mostra(html) { document.getElementById("esito").innerHTML = html; }
-
-async function leggiMrz() {
-  const esito = document.getElementById("esito_mrz");
-  esito.innerHTML = '<p style="margin-top:.8rem">Sto leggendo le righe...</p>';
-  const dati = new FormData();
-  dati.append("immagine", foto.mrz, "mrz.jpg");
+async function chiama(dove, corpo) {
   try {
-    const risposta = await fetch("mrz", {
-      method: "POST", body: dati, headers: parola ? { "X-Parola": parola } : {}
+    const risposta = await fetch(dove, {
+      method: "POST", body: corpo, headers: parola ? { "X-Parola": parola } : {}
     });
     const r = await risposta.json();
-    esito.innerHTML = risposta.ok ? schedaMrz(r) : avviso(r.errore);
+    return risposta.ok ? r : { errore: r.errore };
   } catch (e) {
-    esito.innerHTML = avviso("non sono riuscito a parlare con il server: " + e.message);
+    return { errore: "non sono riuscito a parlare con il server: " + e.message };
   }
 }
 
-const NOMI_CAMPI = {
-  cognome: "cognome", nome: "nome", sesso: "sesso",
-  data_nascita: "data di nascita", cittadinanza: "cittadinanza",
-  numero_documento: "numero documento", numero_supporto: "numero di supporto",
-  numero_personale: "numero personale", scadenza: "scadenza",
-  tipo_documento: "tipo documento", stato_emissione: "stato di rilascio",
-  tutto_insieme: "controllo finale"
-};
-
-function schedaMrz(r) {
-  let righe = "";
-  for (const [chiave, campo] of Object.entries(r.campi)) {
-    const segno = campo.verificato === true ? "&#10003;"
-                : campo.verificato === false ? "&#10007;" : "";
-    const colore = campo.verificato === false ? ' style="color:#b3261e"' : "";
-    righe += "<tr" + colore + "><td>" + (NOMI_CAMPI[chiave] || chiave) + "</td><td><b>"
-           + (campo.valore || "&mdash;") + "</b> " + segno + "</td></tr>";
-  }
-  const avvertenza = r.affidabile
-    ? ""
-    : '<div class="avviso">I campi segnati in rosso non tornano con la loro cifra di controllo: '
-      + "vanno riscritti a mano, gli altri si possono usare come sono.</div>";
-  return '<div style="margin-top:.8rem">' +
-    '<div class="verdetto ' + (r.affidabile ? "si" : "no") + '">' +
-      (r.affidabile ? "Letta e verificata" : "Letta, ma qualcosa non torna") + "</div>" +
-    "<p>formato " + r.formato + ", " + r.millisecondi + " ms</p>" + avvertenza +
-    '<table class="dettagli">' + righe + "</table>" +
-    '<pre style="font-size:.72rem;overflow-x:auto;margin-top:.8rem">' +
-      r.righe.join("
-") + "</pre></div>";
-}
+function mostra(html) { document.getElementById("esito").innerHTML = html; }
 
 function avviso(testo) {
   return '<div class="passo"><div class="verdetto no">Non ha funzionato</div><p>' + testo + "</p></div>";
 }
 
-function scheda(r) {
+/* ---- le due schede del risultato ---- */
+
+function schedaVolto(r) {
+  if (r.errore) return avviso("il confronto dei volti non è riuscito: " + r.errore);
   const fantasma = r.documento.altri_volti_px.length
     ? '<div class="avviso">Sul documento ho trovato più di una faccia (' +
       r.documento.altri_volti_px.join(", ") + ' pixel di larghezza). Ho misurato la più grande: ' +
@@ -285,7 +295,7 @@ function scheda(r) {
     ? riga("nota", "una faccia riempiva l'inquadratura, l'ho ritrovata rimpicciolendo la foto") : "";
   return '<div class="passo">' +
     '<div class="verdetto ' + (r.verificato ? "si" : "no") + '">' +
-      (r.verificato ? "Stessa persona" : "Non è la stessa persona") + "</div>" +
+      (r.verificato ? "Sei tu" : "Il viso non corrisponde") + "</div>" +
     '<div class="punteggio">' + r.somiglianza.toFixed(3) + "</div>" +
     "<p>soglia " + r.soglia.toFixed(2) + "</p>" + fantasma +
     '<table class="dettagli">' +
@@ -293,6 +303,49 @@ function scheda(r) {
       riga("faccia nel selfie", r.selfie.larghezza_px + " px, fiducia " + r.selfie.fiducia) +
       vicino + riga("tempo", r.millisecondi + " ms") +
     "</table></div>";
+}
+
+const NOMI_CAMPI = {
+  cognome: "cognome", nome: "nome", sesso: "sesso",
+  data_nascita: "data di nascita", cittadinanza: "cittadinanza",
+  numero_documento: "numero documento", numero_supporto: "numero di supporto",
+  numero_personale: "numero personale", scadenza: "scadenza",
+  stato_emissione: "stato di rilascio"
+};
+const DA_MOSTRARE = ["cognome", "nome", "sesso", "data_nascita", "cittadinanza",
+                     "numero_documento", "numero_supporto", "numero_personale",
+                     "scadenza", "stato_emissione"];
+
+function schedaMrz(r) {
+  if (r.errore) {
+    return '<div class="passo"><div class="verdetto no">I caratteri non si leggono</div>' +
+      "<p>" + r.errore + ". Rifai la foto del lato con le righe, più vicino e senza riflessi, "
+      + "oppure scrivi i dati a mano.</p></div>";
+  }
+  let campi = "";
+  for (const chiave of DA_MOSTRARE) {
+    const c = r.campi[chiave];
+    if (!c) continue;
+    campi += '<div class="campo' + (c.verificato === false ? " storto" : "") + '">' +
+      "<label>" + (NOMI_CAMPI[chiave] || chiave) + "</label>" +
+      '<input value="' + (c.valore || "").replace(/"/g, "&quot;") + '"></div>';
+  }
+  const avvertenza = r.affidabile
+    ? '<div class="avviso">Le cifre di controllo tornano tutte: questi dati si possono usare come sono. Guardali lo stesso.</div>'
+    : '<div class="avviso">I campi con il bordo rosso non tornano con la loro cifra di controllo: '
+      + "sono stati letti male. Correggili prima di confermare.</div>";
+  return '<div class="passo">' +
+    '<div class="verdetto ' + (r.affidabile ? "si" : "no") + '">I dati del documento</div>' +
+    "<p>formato " + r.formato + ", letti in " + r.millisecondi + " ms. <b>Sono giusti?</b></p>" +
+    avvertenza + campi +
+    '<button id="conferma">Sì, i dati sono giusti</button>' +
+    "<pre>" + r.righe.join("\n") + "</pre></div>";
+}
+
+function conferma(bottone) {
+  bottone.textContent = "Grazie, è tutto";
+  bottone.disabled = true;
+  document.querySelectorAll(".campo input").forEach(i => { i.disabled = true; });
 }
 
 function riga(chiave, valore) {
