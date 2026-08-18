@@ -11,6 +11,11 @@ import numpy as np
 
 PESI = (7, 3, 1)
 
+# Due misure: si prova alla prima, e solo se qualcosa non torna si rifa' con
+# piu' pixel. La seconda costa il doppio del tempo, quindi non e' di serie.
+LATO_PRIMO = 2000
+LATO_SECONDO = 3500
+
 # I tre formati previsti dallo standard, riconosciuti da quante righe sono
 # e da quanto sono lunghe.
 FORMATI = {
@@ -177,18 +182,64 @@ def interpreta(righe):
     return formato, campi
 
 
-def leggi(dati_binari, lato_lungo_max=2000):
-    """Da una fotografia del documento alle righe della MRZ e ai campi."""
+def _apri(dati_binari):
     img = cv2.imdecode(np.frombuffer(dati_binari, np.uint8), cv2.IMREAD_COLOR)
     if img is None:
         raise NessunaMRZ("immagine illeggibile")
-    h, w = img.shape[:2]
-    scala = float(lato_lungo_max) / max(h, w)
-    if scala < 1:
-        img = cv2.resize(img, (int(w * scala), int(h * scala)), interpolation=cv2.INTER_AREA)
+    return img
 
+
+def _rimpicciolisci(img, lato_lungo):
+    h, w = img.shape[:2]
+    scala = float(lato_lungo) / max(h, w)
+    if scala >= 1:
+        return img
+    return cv2.resize(img, (int(w * scala), int(h * scala)), interpolation=cv2.INTER_AREA)
+
+
+def _righe(img):
     esito = _lettore_pronto()(img, do_center_crop=False, do_postprocess=True)
     righe = [r for r in (esito.get("mrz_texts") or []) if r.strip()]
     if not righe:
         raise NessunaMRZ("nessuna zona leggibile a macchina trovata nella foto")
-    return righe, esito.get("msg")
+    return righe
+
+
+def analizza(dati_binari):
+    """La lettura completa, con una seconda occasione se la prima non torna.
+
+    Sulla carta d'identita' i caratteri sono piccoli: fotografata da lontano
+    finiscono a una decina di pixel e il lettore tira a indovinare. Quando le
+    cifre di controllo lo smentiscono si rifa' il giro con piu' pixel, che e'
+    l'unica cosa che cambia davvero il risultato.
+    """
+    img = _apri(dati_binari)
+    migliore = None
+    guaio = None
+    for lato in (LATO_PRIMO, LATO_SECONDO):
+        try:
+            righe = _righe(_rimpicciolisci(img, lato))
+            formato, campi = interpreta(righe)
+        except NessunaMRZ as questo:
+            guaio = questo
+            if max(img.shape[:2]) <= lato:
+                break
+            continue
+        sbagliati = [c for c, v in campi.items() if v["verificato"] is False]
+        esito = {
+            "formato": formato,
+            "righe": righe,
+            "campi": campi,
+            "da_correggere": sbagliati,
+            "affidabile": not sbagliati,
+            "seconda_passata": lato != LATO_PRIMO,
+        }
+        if not sbagliati:
+            return esito
+        if migliore is None:
+            migliore = esito
+        if max(img.shape[:2]) <= lato:
+            break
+    if migliore is not None:
+        return migliore
+    raise guaio or NessunaMRZ("nessuna zona leggibile a macchina trovata nella foto")

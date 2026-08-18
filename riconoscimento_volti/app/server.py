@@ -18,7 +18,7 @@ from waitress import serve
 import mrz
 import volti
 
-VERSIONE = "0.4.0"
+VERSIONE = "0.4.1"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 PREDEFINITE = {"soglia": 0.4, "volto_minimo_px": 80, "parola": "", "log_level": "info"}
@@ -293,19 +293,11 @@ def leggi_mrz():
     soli che si possono scrivere nel modulo senza farli ricontrollare a mano.
     """
     partenza = time.time()
-    righe, messaggio = mrz.leggi(_immagine("immagine"))
-    formato, campi = mrz.interpreta(righe)
-    sbagliati = [c for c, v in campi.items() if v["verificato"] is False]
-    log.info("mrz: %s, %d righe, campi da correggere %s", formato, len(righe), sbagliati)
-    return jsonify({
-        "formato": formato,
-        "righe": righe,
-        "campi": campi,
-        "da_correggere": sbagliati,
-        "affidabile": not sbagliati,
-        "messaggio_lettore": str(messaggio),
-        "millisecondi": _millisecondi(partenza),
-    })
+    esito = mrz.analizza(_immagine("immagine"))
+    esito["millisecondi"] = _millisecondi(partenza)
+    log.info("mrz: %s, seconda passata %s, campi da correggere %s",
+             esito["formato"], esito["seconda_passata"], esito["da_correggere"])
+    return jsonify(esito)
 
 
 if __name__ == "__main__":

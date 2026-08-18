@@ -111,7 +111,7 @@
 
 <div class="passo spento" id="passo_retro">
   <h2>3. Il retro, con le due righe di caratteri</h2>
-  <p>Il lato con le righe fitte di lettere e simboli. Riempi il riquadro, telefono dritto, occhio ai riflessi: sono quelle righe a compilare il modulo.</p>
+  <p>Il lato con le righe fitte di lettere e simboli. Metti il telefono di lato e riempi il riquadro: sono quelle righe a compilare il modulo, e se restano piccole vengono lette male. Occhio ai riflessi.</p>
   <button data-camera="retro">Apri la fotocamera</button>
   <div class="mirino" id="mirino_retro">
     <div class="inquadratura">
@@ -150,7 +150,7 @@
 
 <script>
 const LATO = 1600;
-const LATO_MRZ = 2000;   // i caratteri sono piccoli, qui la risoluzione serve
+const LATO_MRZ = 3000;   // i caratteri sono piccoli, qui la risoluzione serve
 const foto = { documento: null, retro: null, selfie: null };
 const flussi = { documento: null, retro: null, selfie: null };
 let tipo = null;
@@ -169,8 +169,8 @@ function scegliTipo(scelto) {
   document.getElementById("titolo_documento").textContent =
     carta ? "2. Il fronte della carta" : "2. La pagina dei dati";
   document.getElementById("testo_documento").textContent = carta
-    ? "Il lato con la tua fotografia. Riempi il riquadro e tieni il telefono parallelo alla carta, non di sbieco."
-    : "La pagina con la fotografia e, sotto, le due righe di caratteri: da questa sola foto esce tutto. Riempi il riquadro e tieni il telefono dritto.";
+    ? "Il lato con la tua fotografia. Metti il telefono di lato, riempi il riquadro e tienilo parallelo alla carta, non di sbieco."
+    : "La pagina con la fotografia e, sotto, le due righe di caratteri: da questa sola foto esce tutto. Metti il telefono di lato e riempi il riquadro.";
   document.querySelector("#passo_documento .guida").className =
     carta ? "guida documento" : "guida pagina";
   document.getElementById("passo_documento").classList.remove("spento");
@@ -194,10 +194,13 @@ async function accendi(chiave) {
   const video = mirino.querySelector("video");
   const davanti = chiave === "selfie";
   try {
+    // Per i documenti si chiede tutto quello che la fotocamera sa dare: le due
+    // righe di caratteri si leggono solo se sono grandi abbastanza.
+    const largo = davanti ? 1920 : 3840;
     flussi[chiave] = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { ideal: davanti ? "user" : "environment" },
-        width: { ideal: 1920 }, height: { ideal: 1080 }
+        width: { ideal: largo }, height: { ideal: Math.round(largo * 9 / 16) }
       }
     });
   } catch (e) {
@@ -336,7 +339,8 @@ function schedaMrz(r) {
       + "sono stati letti male. Correggili prima di confermare.</div>";
   return '<div class="passo">' +
     '<div class="verdetto ' + (r.affidabile ? "si" : "no") + '">I dati del documento</div>' +
-    "<p>formato " + r.formato + ", letti in " + r.millisecondi + " ms. <b>Sono giusti?</b></p>" +
+    "<p>formato " + r.formato + ", letti in " + r.millisecondi + " ms" +
+      (r.seconda_passata ? ", al secondo tentativo" : "") + ". <b>Sono giusti?</b></p>" +
     avvertenza + campi +
     '<button id="conferma">Sì, i dati sono giusti</button>' +
     "<pre>" + r.righe.join("\n") + "</pre></div>";
