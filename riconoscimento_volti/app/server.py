@@ -6,20 +6,21 @@ e finiscono li'. I vettori li conserva chi chiama, che sa a quale prenotazione
 appartengono e quando vanno cancellati.
 """
 import base64
+import hmac
 import json
 import logging
 import os
 import time
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, Response, jsonify, request, send_from_directory
 from waitress import serve
 
 import volti
 
-VERSIONE = "0.2.0"
+VERSIONE = "0.3.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
-OPZIONI_FILE = "/data/options.json"
-PREDEFINITE = {"soglia": 0.4, "volto_minimo_px": 80, "log_level": "info"}
+OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
+PREDEFINITE = {"soglia": 0.4, "volto_minimo_px": 80, "parola": "", "log_level": "info"}
 LIMITE_CORPO = 32 * 1024 * 1024   # una foto di telefono sta larga in 32 MB
 
 
@@ -44,6 +45,52 @@ log = logging.getLogger("volti")
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = LIMITE_CORPO
+
+
+CHIUSA = """<!DOCTYPE html><html lang="it"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Serve la parola</title>
+<style>body{font:17px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+max-width:22rem;margin:4rem auto;padding:0 1rem;background:#faf9f7;color:#1c1b19}
+input,button{width:100%;padding:.8rem;font-size:1rem;border-radius:10px;margin-top:.6rem}
+input{border:1px solid #c9c3b8}button{border:0;background:#1c1b19;color:#fff;font-weight:600}
+</style></head><body>
+<h1>Serve la parola</h1>
+<p>Questa pagina si apre solo con la parola che ti hanno mandato.</p>
+<form method="get"><input name="parola" autofocus placeholder="la parola">
+<button>Entra</button></form></body></html>"""
+
+
+def _parola_data():
+    """La parola arrivata con la richiesta, da qualunque delle tre strade."""
+    dalla_query = request.args.get("parola")
+    if dalla_query:
+        return dalla_query
+    dal_capo = request.headers.get("X-Parola")
+    if dal_capo:
+        return dal_capo
+    if request.is_json:
+        corpo = request.get_json(silent=True)
+        if isinstance(corpo, dict) and corpo.get("parola"):
+            return corpo["parola"]
+    return request.form.get("parola", "")
+
+
+@app.before_request
+def _controlla_la_parola():
+    """Senza parola non si entra, se una parola e' stata scelta.
+
+    Sta dentro il link che si manda alla persona, cosi' non deve scriverla.
+    Vale anche per le chiamate, altrimenti proteggerebbe solo la vetrina.
+    """
+    attesa = str(OPZIONI.get("parola") or "")
+    if not attesa:
+        return None
+    if hmac.compare_digest(str(_parola_data()), attesa):
+        return None
+    if request.path == "/":
+        return Response(CHIUSA, status=401, mimetype="text/html")
+    return jsonify({"errore": "parola d'ordine mancante o sbagliata"}), 401
 
 
 class Errore(Exception):

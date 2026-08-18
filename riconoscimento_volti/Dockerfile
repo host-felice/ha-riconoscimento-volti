@@ -27,6 +27,6 @@ LABEL \
   io.hass.name="Riconoscimento volti" \
   io.hass.description="Confronto documento-selfie e riconoscimento all'ingresso" \
   io.hass.type="addon" \
-  io.hass.version="0.2.0"
+  io.hass.version="0.3.0"
 
 CMD ["python3", "-u", "/app/server.py"]

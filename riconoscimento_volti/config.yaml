@@ -1,6 +1,6 @@
 ---
 name: Riconoscimento volti
-version: "0.2.0"
+version: "0.3.0"
 slug: riconoscimento_volti
 description: Confronta il volto stampato su un documento con un selfie, e riconosce un ospite atteso alla porta
 url: https://github.com/host-felice/ha-riconoscimento-volti
@@ -17,8 +17,10 @@ ports_description:
 options:
   soglia: 0.4
   volto_minimo_px: 80
+  parola: ""
   log_level: info
 schema:
   soglia: float(0.0,1.0)
   volto_minimo_px: int(20,2000)
+  parola: str?
   log_level: list(debug|info|warning|error)?

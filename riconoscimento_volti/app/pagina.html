@@ -8,10 +8,9 @@
   :root { color-scheme: light dark; }
   * { box-sizing: border-box; }
   body {
-    margin: 0; padding: 1.2rem 1rem 3rem;
+    margin: 0 auto; padding: 1.2rem 1rem 3rem;
     font: 17px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    max-width: 34rem; margin-inline: auto;
-    background: #faf9f7; color: #1c1b19;
+    max-width: 34rem; background: #faf9f7; color: #1c1b19;
   }
   h1 { font-size: 1.45rem; margin: 0 0 .3rem; }
   .sotto { color: #6a6660; margin: 0 0 1.6rem; }
@@ -21,19 +20,34 @@
   }
   .passo h2 { font-size: 1.05rem; margin: 0 0 .2rem; }
   .passo p { margin: .2rem 0 .8rem; color: #6a6660; font-size: .93rem; }
-  label.scatta {
-    display: block; text-align: center; padding: .85rem;
-    border: 2px dashed #c9c3b8; border-radius: 10px;
-    cursor: pointer; font-weight: 600;
-  }
-  label.scatta:active { background: #f2efe9; }
-  input[type=file] { display: none; }
-  img.anteprima { display: none; width: 100%; border-radius: 10px; margin-top: .8rem; }
+  .bottoni { display: flex; gap: .6rem; }
+  .bottoni button { flex: 1; }
   button {
-    width: 100%; padding: .95rem; font-size: 1.05rem; font-weight: 600;
-    border: 0; border-radius: 12px; background: #1c1b19; color: #fff;
+    padding: .8rem; font-size: 1rem; font-weight: 600;
+    border: 0; border-radius: 12px; background: #1c1b19; color: #fff; cursor: pointer;
   }
-  button:disabled { background: #c9c3b8; }
+  button.chiaro { background: #ece8e0; color: #1c1b19; }
+  button:disabled { background: #c9c3b8; color: #fff; cursor: default; }
+  #vai { width: 100%; padding: .95rem; font-size: 1.05rem; }
+  input[type=file] { display: none; }
+  .mirino { position: relative; display: none; margin-top: .8rem; }
+  .mirino video { width: 100%; border-radius: 10px; display: block; background: #000; }
+  .guida {
+    position: absolute; inset: 0; pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .guida .forma {
+    border: 3px solid rgba(255,255,255,.9);
+    box-shadow: 0 0 0 100vmax rgba(0,0,0,.35);
+  }
+  .guida.documento .forma { width: 84%; aspect-ratio: 1.585; border-radius: 10px; }
+  .guida.viso .forma { width: 58%; aspect-ratio: .78; border-radius: 50%; }
+  .guida span {
+    position: absolute; bottom: .6rem; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,.6); color: #fff; font-size: .82rem;
+    padding: .25rem .6rem; border-radius: 20px; white-space: nowrap;
+  }
+  img.anteprima { display: none; width: 100%; border-radius: 10px; margin-top: .8rem; }
   #esito { margin-top: 1.2rem; }
   .verdetto { font-size: 1.35rem; font-weight: 700; margin-bottom: .3rem; }
   .si { color: #1a7f37; }
@@ -46,9 +60,9 @@
   @media (prefers-color-scheme: dark) {
     body { background: #16150f; color: #ece8e0; }
     .passo { background: #201f18; border-color: #35332a; }
-    .sotto, .passo p, .dettagli { color: #a09a8e; }
-    label.scatta { border-color: #46443a; }
+    .sotto, .passo p, .dettagli, .nota { color: #a09a8e; }
     button { background: #ece8e0; color: #16150f; }
+    button.chiaro { background: #35332a; color: #ece8e0; }
     button:disabled { background: #46443a; color: #8d887c; }
     .avviso { background: #3a3216; }
   }
@@ -59,24 +73,45 @@
 <h1>Prova del riconoscimento</h1>
 <p class="sotto">Due foto, un punteggio. Non resta niente: le immagini vengono misurate e buttate, e questa pagina non salva nulla da nessuna parte.</p>
 
-<div class="passo">
+<div class="passo" id="passo_doc">
   <h2>1. Il documento</h2>
-  <p>Il lato con la fotografia: il fronte della carta d'identità, la pagina dei dati del passaporto. Riempi l'inquadratura con il documento e tieni il telefono parallelo, non di sbieco.</p>
-  <label class="scatta" for="doc">Scatta o scegli la foto del documento</label>
-  <input type="file" id="doc" accept="image/*" capture="environment">
-  <img class="anteprima" id="doc_ant" alt="">
+  <p>Il lato con la fotografia: il fronte della carta d'identità, la pagina dei dati del passaporto. Riempi il riquadro e tieni il telefono parallelo al documento, non di sbieco.</p>
+  <div class="bottoni">
+    <button data-camera="documento">Fotocamera</button>
+    <button class="chiaro" data-file="documento">Scegli un file</button>
+  </div>
+  <div class="mirino" id="mirino_documento">
+    <video playsinline muted></video>
+    <div class="guida documento"><div class="forma"></div><span>il documento dentro il riquadro</span></div>
+    <div class="bottoni" style="margin-top:.6rem">
+      <button data-scatta="documento">Scatta</button>
+      <button class="chiaro" data-annulla="documento">Annulla</button>
+    </div>
+  </div>
+  <input type="file" id="file_documento" accept="image/*" capture="environment">
+  <img class="anteprima" id="ant_documento" alt="">
 </div>
 
-<div class="passo">
+<div class="passo" id="passo_self">
   <h2>2. Il selfie</h2>
-  <p>Viso intero, con un po' d'aria sopra i capelli e sotto il mento. Se la faccia riempie tutto lo schermo il riconoscimento fatica: allontana il telefono di un palmo.</p>
-  <label class="scatta" for="self">Scatta o scegli il selfie</label>
-  <input type="file" id="self" accept="image/*" capture="user">
-  <img class="anteprima" id="self_ant" alt="">
+  <p>Il viso dentro l'ovale, senza toccarne i bordi. Se la faccia riempie tutto lo schermo il riconoscimento fatica: allontana il telefono di un palmo.</p>
+  <div class="bottoni">
+    <button data-camera="selfie">Fotocamera</button>
+    <button class="chiaro" data-file="selfie">Scegli un file</button>
+  </div>
+  <div class="mirino" id="mirino_selfie">
+    <video playsinline muted></video>
+    <div class="guida viso"><div class="forma"></div><span>il viso dentro l'ovale</span></div>
+    <div class="bottoni" style="margin-top:.6rem">
+      <button data-scatta="selfie">Scatta</button>
+      <button class="chiaro" data-annulla="selfie">Annulla</button>
+    </div>
+  </div>
+  <input type="file" id="file_selfie" accept="image/*" capture="user">
+  <img class="anteprima" id="ant_selfie" alt="">
 </div>
 
 <button id="vai" disabled>Confronta</button>
-
 <div id="esito"></div>
 
 <p class="nota">Banco di prova del guest portal. Il punteggio va da 0 a 1: sopra la soglia il sistema considera che sia la stessa persona.</p>
@@ -84,57 +119,118 @@
 <script>
 const LATO = 1600;
 const foto = { documento: null, selfie: null };
+const flussi = { documento: null, selfie: null };
 
-function rimpicciolisci(file, callback) {
+const parola = new URLSearchParams(location.search).get("parola")
+            || sessionStorage.getItem("parola") || "";
+if (parola) sessionStorage.setItem("parola", parola);
+
+/* ---- fotocamera dal vivo ---- */
+
+async function accendi(chiave) {
+  const mirino = document.getElementById("mirino_" + chiave);
+  const video = mirino.querySelector("video");
+  const davanti = chiave === "selfie";
+  try {
+    flussi[chiave] = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: davanti ? "user" : "environment" },
+        width: { ideal: 1920 }, height: { ideal: 1080 }
+      }
+    });
+  } catch (e) {
+    mostra(avviso("la fotocamera non si apre (" + e.name + "). "
+      + "Sui computer serve un collegamento sicuro e il permesso del browser: "
+      + "intanto puoi scegliere un file."));
+    return;
+  }
+  video.srcObject = flussi[chiave];
+  video.style.transform = davanti ? "scaleX(-1)" : "none";
+  await video.play();
+  mirino.style.display = "block";
+}
+
+function spegni(chiave) {
+  const mirino = document.getElementById("mirino_" + chiave);
+  if (flussi[chiave]) { flussi[chiave].getTracks().forEach(t => t.stop()); flussi[chiave] = null; }
+  mirino.querySelector("video").srcObject = null;
+  mirino.style.display = "none";
+}
+
+function scatta(chiave) {
+  const video = document.getElementById("mirino_" + chiave).querySelector("video");
+  const w = video.videoWidth, h = video.videoHeight;
+  const tela = document.createElement("canvas");
+  const scala = Math.min(1, LATO / Math.max(w, h));
+  tela.width = Math.round(w * scala); tela.height = Math.round(h * scala);
+  tela.getContext("2d").drawImage(video, 0, 0, tela.width, tela.height);
+  spegni(chiave);
+  tela.toBlob(b => tieni(chiave, b, tela.toDataURL("image/jpeg", 0.5)), "image/jpeg", 0.88);
+}
+
+/* ---- file dal disco ---- */
+
+function daFile(chiave, file) {
   const lettore = new FileReader();
   lettore.onload = e => {
     const img = new Image();
     img.onload = () => {
-      let { width: w, height: h } = img;
-      const scala = LATO / Math.max(w, h);
-      if (scala < 1) { w = Math.round(w * scala); h = Math.round(h * scala); }
+      let w = img.width, h = img.height;
+      const scala = Math.min(1, LATO / Math.max(w, h));
+      w = Math.round(w * scala); h = Math.round(h * scala);
       const tela = document.createElement("canvas");
       tela.width = w; tela.height = h;
       tela.getContext("2d").drawImage(img, 0, 0, w, h);
-      tela.toBlob(b => callback(b, tela.toDataURL("image/jpeg", 0.5)), "image/jpeg", 0.85);
+      tela.toBlob(b => tieni(chiave, b, tela.toDataURL("image/jpeg", 0.5)), "image/jpeg", 0.88);
     };
     img.src = e.target.result;
   };
   lettore.readAsDataURL(file);
 }
 
-function collega(idInput, idAnteprima, chiave) {
-  document.getElementById(idInput).addEventListener("change", ev => {
-    const file = ev.target.files[0];
-    if (!file) return;
-    rimpicciolisci(file, (blob, anteprima) => {
-      foto[chiave] = blob;
-      const ant = document.getElementById(idAnteprima);
-      ant.src = anteprima; ant.style.display = "block";
-      document.getElementById("vai").disabled = !(foto.documento && foto.selfie);
-    });
-  });
+function tieni(chiave, blob, anteprima) {
+  foto[chiave] = blob;
+  const ant = document.getElementById("ant_" + chiave);
+  ant.src = anteprima; ant.style.display = "block";
+  document.getElementById("vai").disabled = !(foto.documento && foto.selfie);
 }
-collega("doc", "doc_ant", "documento");
-collega("self", "self_ant", "selfie");
+
+document.addEventListener("click", ev => {
+  const b = ev.target.closest("button");
+  if (!b) return;
+  if (b.dataset.camera) accendi(b.dataset.camera);
+  if (b.dataset.file) document.getElementById("file_" + b.dataset.file).click();
+  if (b.dataset.scatta) scatta(b.dataset.scatta);
+  if (b.dataset.annulla) spegni(b.dataset.annulla);
+});
+["documento", "selfie"].forEach(chiave => {
+  document.getElementById("file_" + chiave).addEventListener("change", ev => {
+    if (ev.target.files[0]) daFile(chiave, ev.target.files[0]);
+  });
+});
+
+/* ---- il confronto ---- */
 
 document.getElementById("vai").addEventListener("click", async () => {
   const bottone = document.getElementById("vai");
-  const esito = document.getElementById("esito");
   bottone.disabled = true; bottone.textContent = "Sto misurando...";
-  esito.innerHTML = "";
+  mostra("");
   const dati = new FormData();
   dati.append("documento", foto.documento, "documento.jpg");
   dati.append("selfie", foto.selfie, "selfie.jpg");
   try {
-    const risposta = await fetch("confronta", { method: "POST", body: dati });
+    const risposta = await fetch("confronta", {
+      method: "POST", body: dati, headers: parola ? { "X-Parola": parola } : {}
+    });
     const r = await risposta.json();
-    esito.innerHTML = risposta.ok ? scheda(r) : avviso(r.errore);
+    mostra(risposta.ok ? scheda(r) : avviso(r.errore));
   } catch (e) {
-    esito.innerHTML = avviso("non sono riuscito a parlare con il server: " + e.message);
+    mostra(avviso("non sono riuscito a parlare con il server: " + e.message));
   }
   bottone.disabled = false; bottone.textContent = "Confronta";
 });
+
+function mostra(html) { document.getElementById("esito").innerHTML = html; }
 
 function avviso(testo) {
   return '<div class="passo"><div class="verdetto no">Non ha funzionato</div><p>' + testo + "</p></div>";
@@ -144,19 +240,19 @@ function scheda(r) {
   const fantasma = r.documento.altri_volti_px.length
     ? '<div class="avviso">Sul documento ho trovato più di una faccia (' +
       r.documento.altri_volti_px.join(", ") + ' pixel di larghezza). Ho misurato la più grande: ' +
-      'le altre di solito sono l\'immagine fantasma stampata contro le falsificazioni.</div>'
+      "le altre di solito sono l'immagine fantasma stampata contro le falsificazioni.</div>"
     : "";
+  const vicino = (r.selfie.seconda_passata || r.documento.seconda_passata)
+    ? riga("nota", "una faccia riempiva l'inquadratura, l'ho ritrovata rimpicciolendo la foto") : "";
   return '<div class="passo">' +
     '<div class="verdetto ' + (r.verificato ? "si" : "no") + '">' +
       (r.verificato ? "Stessa persona" : "Non è la stessa persona") + "</div>" +
     '<div class="punteggio">' + r.somiglianza.toFixed(3) + "</div>" +
-    '<p>soglia ' + r.soglia.toFixed(2) + "</p>" + fantasma +
+    "<p>soglia " + r.soglia.toFixed(2) + "</p>" + fantasma +
     '<table class="dettagli">' +
       riga("faccia sul documento", r.documento.larghezza_px + " px, fiducia " + r.documento.fiducia) +
       riga("faccia nel selfie", r.selfie.larghezza_px + " px, fiducia " + r.selfie.fiducia) +
-      (r.selfie.seconda_passata || r.documento.seconda_passata
-        ? riga("nota", "una faccia riempiva l'inquadratura, l'ho ritrovata rimpicciolendo la foto") : "") +
-      riga("tempo", r.millisecondi + " ms") +
+      vicino + riga("tempo", r.millisecondi + " ms") +
     "</table></div>";
 }
 
