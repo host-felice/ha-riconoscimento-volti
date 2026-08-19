@@ -3,6 +3,22 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.12.0
+
+- **Il "No, grazie" adesso ferma tutto.** Prima fermava solo l'invio, e il
+  risultato finiva comunque nel quaderno dentro l'add-on: siccome l'add-on
+  gira sulla macchina di chi ha chiesto il favore, era esattamente la cosa che
+  la domanda chiama "tenere il risultato". Un no che ferma solo meta' e' un no
+  finto. Chi risponde no adesso non lascia traccia da nessuna parte.
+- La prova alla porta segue la stessa risposta del confronto, e non chiede una
+  seconda volta.
+- **Una faccia sconosciuta in un solo scatto non e' piu' un allarme.** Su un
+  fotogramma mosso il rilevatore inventa una faccia che non c'e', e quella
+  somiglia a zero a chiunque, esattamente come un estraneo vero: il punteggio
+  non li distingue. A distinguerli e' il tempo, ed e' il motivo per cui alla
+  porta si scattano tre foto. Adesso si avvisa solo per chi compare in almeno
+  due scatti.
+
 ## 0.11.0
 
 - **La fotocamera si gira.** Alla porta partiva quella dietro e non c'era modo

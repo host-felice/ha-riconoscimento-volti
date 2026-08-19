@@ -369,7 +369,7 @@ document.getElementById("vai").addEventListener("click", async () => {
   // Qui si sta misurando, quindi si chiedono i punteggi di tutti e due i
   // modelli sulla stessa faccia: e' l'unico confronto che vuol dire qualcosa.
   perVolto.append("anche_l_altro", "si");
-  if (consenso === "si") perVolto.append("consenso_invio", "si");
+  perVolto.append("consenso_invio", consenso === "si" ? "si" : "no");
   const [volto, dati] = await Promise.all([chiama("confronta", perVolto), chiama("mrz", perMrz)]);
   mostra(schedaVolto(volto) + schedaMrz(dati));
   if (volto.verificato && volto.vettore_selfie) registra(volto.vettore_selfie, dati);
@@ -531,6 +531,7 @@ async function raffica() {
   const dati = new FormData();
   scatti.forEach((s, i) => dati.append("immagine", s, "porta" + i + ".jpg"));
   dati.append("attesi", JSON.stringify(attesi));
+  dati.append("consenso_invio", consenso === "si" ? "si" : "no");
   const r = await chiama("riconosci", dati);
   esito.innerHTML = schedaPorta(r);
 }
@@ -556,11 +557,16 @@ function schedaPorta(r) {
              (finto ? '<br><span style="color:#b3261e">ma davanti alla telecamera era una fotografia, ' +
                       p.minifasnet.punteggio.toFixed(3) + "</span>" : "") + "</td></tr>";
   }
-  const estranei = r.sconosciuti.length
-    ? '<div class="avviso">' + r.sconosciuti.length + " faccia/e non fra gli attesi (la migliore somiglia a "
-      + r.sconosciuti[0].assomiglia_a + " per " + r.sconosciuti[0].somiglianza_migliore.toFixed(3)
-      + "). Alla porta vuol dire: c'è qualcuno che non ha fatto il check-in.</div>"
-    : "";
+  // Una faccia sconosciuta in un solo scatto non e' una persona: e' quello che
+  // il rilevatore inventa su un fotogramma mosso. Si avvisa solo per chi resta
+  // fermo davanti all'obiettivo in piu' scatti.
+  const estranei = r.persone_in_piu
+    ? '<div class="avviso">' + r.persone_in_piu + (r.persone_in_piu === 1 ? " persona" : " persone")
+      + " non fra gli attesi, e ci sono in più scatti. Alla porta vuol dire: c'è qualcuno che non ha fatto il check-in.</div>"
+    : (r.sconosciuti.length
+      ? '<div class="avviso">' + r.sconosciuti.length + " faccia/e sconosciuta/e, ma in un solo scatto: "
+        + "quasi certamente un fotogramma mosso, non una persona.</div>"
+      : "");
   return '<div style="margin-top:.8rem">' +
     '<div class="verdetto ' + (dentro ? "si" : "no") + '">' +
       (dentro ? "Riconosciuti " + dentro + " su " + r.tutti.length : "Nessuno riconosciuto") + "</div>" +

@@ -24,7 +24,7 @@ import mrz
 import registro
 import volti
 
-VERSIONE = "0.11.0"
+VERSIONE = "0.12.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 PREDEFINITE = {"modello": "buffalo_l", "invio_prove": "", "soglia": 0.4, "soglia_sface": 0.363,
@@ -313,16 +313,35 @@ def _soglia_minifasnet():
         raise Errore("soglia_minifasnet non e' un numero: %r" % chiesta)
 
 
-def _consenso_invio():
-    """Se chi ha fatto la prova ha detto di si' all'invio del risultato.
+def _consenso():
+    """Cosa ha risposto chi ha fatto la prova: si', no, oppure non gli e' stato chiesto.
 
-    Deve essere un si' detto, non un silenzio: senza il campo non si manda
-    niente. E' la stessa regola del consenso dell'ospite, in piccolo.
+    Sono tre stati e non due, e la differenza conta.
+
+    - **si'**: la prova si scrive nel quaderno e parte verso Home Assistant.
+    - **no**: non si scrive **niente, da nessuna parte**. Il quaderno sta sulla
+      macchina di chi ha chiesto il favore, quindi scriverci sopra e' esattamente
+      la cosa che la domanda chiama "tenere il risultato": un no che ferma solo
+      l'invio sarebbe un no finto.
+    - **niente**: non e' una prova, e' il portale che lavora. Il quaderno serve
+      a far funzionare il sistema e si scrive, ma fuori non esce nulla.
     """
     corpo = _corpo_json()
     valore = (corpo.get("consenso_invio") if corpo is not None
               else request.form.get("consenso_invio"))
+    if valore is None:
+        return None
     return str(valore).lower() in ("si", "1", "true", "yes", "on")
+
+
+def _registra(chiamata, risposta):
+    """Scrive la prova dove va scritta, secondo cosa ha risposto la persona."""
+    consenso = _consenso()
+    if consenso is False:
+        return False
+    pulita = registro.ripulita(chiamata, dict(risposta, telefono=_telefono()))
+    registro.scrivi_riga(pulita)
+    return invio.manda(OPZIONI["invio_prove"], pulita) if consenso else False
 
 
 def _chiesto_minifasnet():
@@ -357,6 +376,30 @@ def _minifasnet(img, riquadro, documento=False):
         esito["soglia"] = _soglia_minifasnet()
         esito["persona_vera"] = esito["punteggio"] >= esito["soglia"]
     return esito
+
+
+def _quante_persone_in_piu(sconosciuti, soglia):
+    """Quante persone vere ci sono fra le facce che non sono di nessun atteso.
+
+    **Non tutte le facce che il rilevatore trova sono persone.** Su un
+    fotogramma mosso ne inventa una che non c'e', e quella somiglia a zero a
+    chiunque: identica a come somiglia a zero un estraneo vero. Il punteggio
+    non li distingue, e da solo farebbe gridare al lupo a ogni movimento.
+
+    A distinguerli e' il tempo. Alla porta si scattano tre foto proprio per
+    questo: **una persona c'e' in piu' scatti, un fantasma in uno solo.**
+    Quindi si mettono insieme le facce sconosciute che si somigliano fra loro,
+    e si contano solo i gruppi che compaiono in almeno due scatti diversi.
+    """
+    gruppi = []
+    for faccia in sconosciuti:
+        for gruppo in gruppi:
+            if volti.somiglianza(faccia["vettore"], gruppo[0]["vettore"]) >= soglia:
+                gruppo.append(faccia)
+                break
+        else:
+            gruppi.append([faccia])
+    return len([g for g in gruppi if len({f["scatto"] for f in g}) >= 2])
 
 
 def _analizza(dati, modello, con_minifasnet=False, documento=False):
@@ -538,11 +581,7 @@ def confronta():
         "altri_modelli": altri,
         "millisecondi": _millisecondi(partenza),
     }
-    risposta["telefono"] = _telefono()
-    pulita = registro.ripulita("confronta", risposta)
-    registro.scrivi_riga(pulita)
-    risposta["prova_mandata"] = (
-        invio.manda(OPZIONI["invio_prove"], pulita) if _consenso_invio() else False)
+    risposta["prova_mandata"] = _registra("confronta", risposta)
     risposta["vettore_selfie"] = selfie["vettore"]
     return jsonify(risposta)
 
@@ -566,7 +605,7 @@ def riconosci():
 
     scatti = _immagini("immagine")
     facce = []
-    for dati in scatti:
+    for numero, dati in enumerate(scatti):
         img = volti.leggi(dati)
         try:
             trovate = volti.tutti_i_volti(img, int(OPZIONI["volto_minimo_px"]), modello)
@@ -574,6 +613,9 @@ def riconosci():
             continue
         for faccia in trovate:
             faccia["minifasnet"] = _minifasnet(img, faccia["riquadro"])
+            # Da quale dei tre scatti viene: serve sotto, a distinguere una
+            # persona da un fotogramma mosso.
+            faccia["scatto"] = numero
         facce.extend(trovate)
     if not facce:
         raise volti.NessunVolto("nessun volto trovato in nessuno degli scatti")
@@ -599,7 +641,13 @@ def riconosci():
                 "somiglianza_migliore": migliore[1],
                 "assomiglia_a": migliore[0],
                 "minifasnet": faccia.get("minifasnet"),
+                "scatto": faccia["scatto"],
+                "vettore": faccia["vettore"],
             })
+
+    persone_in_piu = _quante_persone_in_piu(sconosciuti, soglia)
+    for sconosciuto in sconosciuti:
+        del sconosciuto["vettore"]
 
     punteggi = sorted(({"nome": n, "somiglianza": round(p, 4), "minifasnet": v}
                        for n, (p, v) in per_atteso.items()),
@@ -613,15 +661,16 @@ def riconosci():
     respinti = [r["nome"] for r in riconosciuti
                 if r["minifasnet"] and r["minifasnet"].get("misurata")
                 and not r["minifasnet"]["persona_vera"]]
-    log.info("riconosci (%s): %d facce in %d scatti, riconosciuti %s, sconosciuti %d %s%s",
+    log.info("riconosci (%s): %d facce in %d scatti, riconosciuti %s, sconosciuti %d %s, persone in piu' %d%s",
              modello, len(facce), len(scatti),
              ["%s %.3f" % (r["nome"], r["somiglianza"]) for r in riconosciuti],
-             len(fuori), fuori,
+             len(fuori), fuori, persone_in_piu,
              (", ma MiniFASNet respinge %s" % respinti) if respinti else "")
     risposta = {
         "modello": modello,
         "riconosciuti": riconosciuti,
         "sconosciuti": sconosciuti,
+        "persone_in_piu": persone_in_piu,
         "tutti": punteggi,
         "volti_trovati": len(facce),
         "scatti": len(scatti),
@@ -629,10 +678,11 @@ def riconosci():
         "millisecondi": _millisecondi(partenza),
     }
     # Nel registro i nomi non entrano (li toglie lui), restano i punteggi: sono
-    # quelli a dire se la soglia alla porta e' quella giusta.
-    registro.scrivi("riconosci", dict(risposta, telefono=_telefono(),
-                                      punteggi=[p["somiglianza"] for p in punteggi],
-                                      quanti_riconosciuti=len(riconosciuti)))
+    # quelli a dire se la soglia alla porta e' quella giusta. E vale la stessa
+    # risposta data prima del confronto: la porta non e' una seconda domanda.
+    risposta["prova_mandata"] = _registra(
+        "riconosci", dict(risposta, punteggi=[p["somiglianza"] for p in punteggi],
+                          quanti_riconosciuti=len(riconosciuti)))
     return jsonify(risposta)
 
 
