@@ -1,0 +1,11 @@
+Riconoscimento volti per il guest portal
+Copyright 2026 Felice Marra
+
+Questo add-on non contiene modelli: li scarica la macchina su cui viene
+costruito. I modelli hanno licenze proprie, diverse da questa.
+
+- YuNet (rilevamento dei volti), da opencv/opencv_zoo: licenza MIT.
+- buffalo_l / w600k_r50 (confronto dei volti), da deepinsight/insightface:
+  il codice di InsightFace e' MIT, ma i modelli gia' addestrati sono
+  dichiarati "per sola ricerca non commerciale". Per un uso commerciale
+  serve una licenza da InsightFace, oppure un modello diverso.
