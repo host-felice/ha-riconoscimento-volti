@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Prova del riconoscimento</title>
 <style>
-  :root { color-scheme: light dark; }
+  :root { color-scheme: light; }
   * { box-sizing: border-box; }
   body {
     margin: 0 auto; padding: 1.2rem 1rem 3rem;
@@ -57,10 +57,7 @@
   }
   img.anteprima { display: none; width: 100%; border-radius: 10px; margin-top: .8rem; }
   #esito { margin-top: 1.2rem; }
-  .consenso { display: flex; gap: .7rem; align-items: flex-start; margin: 1.2rem 0 .6rem;
-    padding: .9rem; border: 1px solid #e0dbd2; border-radius: 12px; background: #fff;
-    font-size: .93rem; line-height: 1.45; cursor: pointer; }
-  .consenso input { width: 1.15rem; height: 1.15rem; margin-top: .15rem; flex: none; }
+  #passo_consenso { margin-top: 1.2rem; }
   .verdetto { font-size: 1.35rem; font-weight: 700; margin-bottom: .3rem; }
   .si { color: #1a7f37; }
   .no { color: #b3261e; }
@@ -157,14 +154,17 @@
   <img class="anteprima" id="ant_selfie" alt="">
 </div>
 
-<label class="consenso" id="consenso">
-  <input type="checkbox" id="manda_prova">
-  <span><b>Posso tenere il risultato di questa prova?</b>
-  Partono solo numeri: quanto ha fatto il confronto, quanto era grande il viso
-  nella foto e quanti millisecondi ci &egrave; voluto. La tua faccia no, il tuo
-  nome no, il documento no. Le foto vengono cancellate appena finito il
-  confronto, che tu dica di s&igrave; o di no.</span>
-</label>
+<div class="passo" id="passo_consenso">
+  <h2>Posso tenere il risultato di questa prova?</h2>
+  <p>Partono solo numeri: quanto ha fatto il confronto, quanto era grande il
+  viso nella foto e quanti millisecondi ci &egrave; voluto. La tua faccia no,
+  il tuo nome no, il documento no. Le foto vengono cancellate appena finito il
+  confronto, che tu dica di s&igrave; o di no.</p>
+  <div class="bottoni">
+    <button class="chiaro" data-consenso="si">S&igrave;, tienilo</button>
+    <button class="chiaro" data-consenso="no">No, grazie</button>
+  </div>
+</div>
 
 <button id="vai" disabled>Controlla</button>
 <div id="esito"></div>
@@ -217,6 +217,18 @@ if (parola) sessionStorage.setItem("parola", parola);
 
 /* ---- che documento ---- */
 
+// Nessuna delle due parte scelta: un silenzio non e' un si', e non lo e'
+// nemmeno una casella lasciata com'era.
+let consenso = null;
+
+function scegliConsenso(scelto) {
+  consenso = scelto;
+  document.querySelectorAll("[data-consenso]").forEach(b =>
+    b.classList.toggle("scelto", b.dataset.consenso === scelto));
+  controllaPronto();
+}
+
+
 function scegliTipo(scelto) {
   tipo = scelto;
   document.querySelectorAll("[data-tipo]").forEach(b =>
@@ -240,7 +252,9 @@ function scegliTipo(scelto) {
 function controllaPronto() {
   const serveRetro = tipo === "carta";
   document.getElementById("vai").disabled =
-    !(tipo && foto.documento && foto.selfie && (!serveRetro || foto.retro));
+    !(tipo && foto.documento && foto.selfie && (!serveRetro || foto.retro) && consenso);
+  document.getElementById("vai").textContent =
+    consenso ? "Controlla" : "Controlla (rispondi prima qui sopra)";
 }
 
 /* ---- fotocamera dal vivo ---- */
@@ -315,6 +329,7 @@ document.addEventListener("click", ev => {
   const b = ev.target.closest("button");
   if (!b) return;
   if (b.dataset.tipo) scegliTipo(b.dataset.tipo);
+  if (b.dataset.consenso) scegliConsenso(b.dataset.consenso);
   if (b.dataset.camera) accendi(b.dataset.camera);
   if (b.dataset.scatta === "porta") raffica();
   else if (b.dataset.scatta) scatta(b.dataset.scatta);
@@ -338,7 +353,7 @@ document.getElementById("vai").addEventListener("click", async () => {
   // Qui si sta misurando, quindi si chiedono i punteggi di tutti e due i
   // modelli sulla stessa faccia: e' l'unico confronto che vuol dire qualcosa.
   perVolto.append("anche_l_altro", "si");
-  if (document.getElementById("manda_prova").checked) perVolto.append("consenso_invio", "si");
+  if (consenso === "si") perVolto.append("consenso_invio", "si");
   const [volto, dati] = await Promise.all([chiama("confronta", perVolto), chiama("mrz", perMrz)]);
   mostra(schedaVolto(volto) + schedaMrz(dati));
   if (volto.verificato && volto.vettore_selfie) registra(volto.vettore_selfie, dati);
