@@ -3,6 +3,27 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.16.0
+
+- **Il documento scaduto viene fermato, e nessuno lo controllava.** La lettura
+  della MRZ ora dice se il documento e' scaduto e di quanti giorni, e nel
+  portale un documento scaduto **ferma tutto prima del confronto dei volti**:
+  non e' un documento di identificazione, quindi il volto non si elabora
+  affatto. Prima faceva tutto il giro fino al punteggio senza che nessuno
+  dicesse niente. All'ospite si dice quando e' scaduto e che serve un documento
+  valido, non e' una cosa che si sistema all'arrivo, e l'host non puo' rimediare
+  guardando: puo' garantire che la faccia corrisponde, non puo' rendere valido un
+  documento scaduto.
+- **Quando la scadenza non si legge non si giudica.** Se la cifra di controllo
+  della scadenza non torna, o la data non esiste sul calendario, il documento
+  non viene respinto e si dice perche'. Un documento buono respinto per una
+  cifra letta male e' peggio di uno scaduto che passa: quello lo vede comunque
+  l'host, l'ospite respinto per sbaglio non ha nessuno a cui spiegarsi.
+- Il documento e i volti non si guardano piu' insieme ma **in fila**, prima il
+  documento. Costa i secondi della lettura prima del confronto, e li vale.
+- Nel registro dell'add-on la scadenza si scrive come "quanti giorni", mai come
+  data: una data di scadenza e' un pezzo di documento e riporta a una persona.
+
 ## 0.15.0
 
 - **L'occhio dell'host e' la seconda porta d'ingresso.** Quando il confronto fra

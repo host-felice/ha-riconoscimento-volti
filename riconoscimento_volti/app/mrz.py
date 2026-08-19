@@ -6,6 +6,7 @@ aritmetica scritta nello standard ICAO 9303, e la facciamo qui: ogni campo
 importante porta con se' una cifra di controllo, e quella cifra dice se il
 campo si puo' usare o va fatto correggere all'ospite.
 """
+import datetime
 import gc
 import multiprocessing
 
@@ -141,6 +142,41 @@ def _data(sei_cifre):
     return "%s/%s/%s" % (sei_cifre[4:6], sei_cifre[2:4], sei_cifre[0:2])
 
 
+def _validita(campo_scadenza):
+    """Se il documento e' scaduto, e di quanti giorni.
+
+    **Mancava, e si e' visto il 19 agosto 2026** (#37): un documento scaduto e'
+    passato per tutto il giro fino al confronto dei volti, e nessuno ha detto
+    niente. Un ospite si deve presentare munito di un documento di
+    identificazione valido: scaduto non e' valido, e la cosa va detta prima
+    dell'arrivo, non davanti alla porta.
+
+    L'anno nella MRZ ha due cifre e per la scadenza non c'e' ambiguita': un
+    documento che scadeva nel millenovecento non si presenta a nessun check-in,
+    quindi le due cifre sono sempre duemila e qualcosa. Per la data di nascita
+    la regola sarebbe un'altra, e qui non serve.
+
+    **Se la cifra di controllo della scadenza non torna, non si giudica niente.**
+    Un documento buono respinto perche' il lettore ha letto male una cifra e'
+    peggio di uno scaduto che passa: quello lo vede comunque l'host, mentre
+    l'ospite respinto per sbaglio non ha nessuno a cui spiegarsi.
+    """
+    if campo_scadenza.get("verificato") is False:
+        return {"scaduto": None, "giorni": None,
+                "motivo": "la cifra di controllo della scadenza non torna, la data e' da correggere"}
+    pezzi = str(campo_scadenza.get("valore") or "").split("/")
+    if len(pezzi) != 3 or not all(p.isdigit() for p in pezzi):
+        return {"scaduto": None, "giorni": None, "motivo": "la data di scadenza non si legge"}
+    try:
+        quando = datetime.date(2000 + int(pezzi[2]), int(pezzi[1]), int(pezzi[0]))
+    except ValueError:
+        return {"scaduto": None, "giorni": None,
+                "motivo": "la data di scadenza non esiste sul calendario"}
+    giorni = (quando - datetime.date.today()).days
+    return {"scaduto": giorni < 0, "giorni": giorni,
+            "scade_il": quando.strftime("%d/%m/%Y"), "motivo": ""}
+
+
 def _td3(righe):
     prima, seconda = righe
     cognome, nome = _nomi(prima[5:44])
@@ -271,6 +307,7 @@ def analizza(dati_binari):
             "campi": campi,
             "da_correggere": sbagliati,
             "affidabile": not sbagliati,
+            "validita": _validita(campi["scadenza"]),
             "seconda_passata": lato != LATO_PRIMO,
         }
         if not sbagliati:

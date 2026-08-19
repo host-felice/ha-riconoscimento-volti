@@ -24,7 +24,7 @@ import mrz
 import registro
 import volti
 
-VERSIONE = "0.15.0"
+VERSIONE = "0.16.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 PREDEFINITE = {"modello": "buffalo_l", "invio_prove": "", "soglia": 0.4, "soglia_sface": 0.363,
@@ -848,6 +848,15 @@ def _restituisci_memoria(risposta):
     return risposta
 
 
+def _detta_validita(validita):
+    """La scadenza come si legge nel registro. Niente date se non si sa niente."""
+    if validita.get("scaduto") is None:
+        return "scadenza non giudicabile"
+    if validita["scaduto"]:
+        return "SCADUTO da %d giorni" % abs(validita["giorni"])
+    return "valido per altri %d giorni" % validita["giorni"]
+
+
 @app.route("/mrz", methods=["POST"])
 def leggi_mrz():
     """Le righe di caratteri in fondo al documento, e cosa dicono.
@@ -858,9 +867,10 @@ def leggi_mrz():
     partenza = time.time()
     esito = mrz.analizza_altrove(_immagine("immagine"))
     esito["millisecondi"] = _millisecondi(partenza)
-    log.info("mrz: %s, seconda passata %s, campi da correggere %s, memoria %s MB",
+    validita = esito.get("validita") or {}
+    log.info("mrz: %s, seconda passata %s, campi da correggere %s, %s, memoria %s MB",
              esito["formato"], esito["seconda_passata"], esito["da_correggere"],
-             _memoria_mb())
+             _detta_validita(validita), _memoria_mb())
     return jsonify(esito)
 
 

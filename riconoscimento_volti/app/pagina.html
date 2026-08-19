@@ -388,7 +388,19 @@ document.getElementById("vai").addEventListener("click", async () => {
   // modelli sulla stessa faccia: e' l'unico confronto che vuol dire qualcosa.
   perVolto.append("anche_l_altro", "si");
   perVolto.append("consenso_invio", consenso === "si" ? "si" : "no");
-  const [volto, dati] = await Promise.all([chiama("confronta", perVolto), chiama("mrz", perMrz)]);
+  // **Prima il documento, poi i volti**, e non piu' i due insieme. Un documento
+  // scaduto non e' un documento di identificazione, quindi il confronto non si
+  // deve fare affatto: non e' solo tempo sprecato, e' un volto elaborato per
+  // niente. Costa i secondi della lettura prima del confronto, e li vale.
+  const dati = await chiama("mrz", perMrz);
+  const scadenza = (dati && dati.validita) || {};
+  if (scadenza.scaduto === true) {
+    mostra(schedaMrz(dati) + ilDocumentoEScaduto(scadenza));
+    bottone.disabled = false;
+    controllaPronto();
+    return;
+  }
+  const volto = await chiama("confronta", perVolto);
   mostra(schedaVolto(volto) + schedaMrz(dati));
   if (volto.verificato && volto.vettore_selfie) {
     tentativi = 0;
@@ -403,6 +415,23 @@ document.getElementById("vai").addEventListener("click", async () => {
   bottone.disabled = false;
   controllaPronto();
 });
+
+function ilDocumentoEScaduto(scadenza) {
+  // Non e' un confronto fallito e non conta come tentativo: e' un documento che
+  // non si puo' usare. L'host non puo' rimediare guardando, come fa quando il
+  // confronto non riesce: puo' garantire che la faccia corrisponde, non puo'
+  // rendere valido un documento scaduto.
+  return '<div class="passo"><div class="verdetto no">Questo documento &egrave; scaduto</div>' +
+    "<p>&Egrave; scaduto il <b>" + (scadenza.scade_il || "?") + "</b>, "
+      + Math.abs(scadenza.giorni) + " giorni fa. Per il check-in serve un documento "
+      + "di identificazione <b>valido</b>: con questo non si pu&ograve; proseguire, e non "
+      + "&egrave; una cosa che si sistema all&rsquo;arrivo.</p>" +
+    "<p>Rif&agrave; il controllo con un altro documento, oppure rinnova questo. Se non ne hai "
+      + "un altro, scrivi a chi ti ospita prima di partire.</p>" +
+    '<div class="bottoni">' +
+      '<button class="chiaro" data-scampo="nuovo">Ricomincia con un altro documento</button>' +
+    "</div></div>";
+}
 
 function leMigliorie() {
   // Non consigli generici: i numeri sono quelli misurati sul banco di prova.
@@ -549,6 +578,12 @@ function schedaMrz(r) {
       "<label>" + (NOMI_CAMPI[chiave] || chiave) + "</label>" +
       '<input value="' + (c.valore || "").replace(/"/g, "&quot;") + '"></div>';
   }
+  const v = r.validita || {};
+  const quandoScade = v.scaduto === true
+    ? '<div class="avviso">Scaduto il ' + v.scade_il + ", " + Math.abs(v.giorni) + " giorni fa.</div>"
+    : (v.scaduto === false
+      ? '<div class="avviso">Valido fino al ' + v.scade_il + ", cio&egrave; altri " + v.giorni + " giorni.</div>"
+      : '<div class="avviso">La scadenza non si giudica: ' + (v.motivo || "non si legge") + ".</div>");
   const avvertenza = r.affidabile
     ? '<div class="avviso">Le cifre di controllo tornano tutte: questi dati si possono usare come sono. Guardali lo stesso.</div>'
     : '<div class="avviso">I campi con il bordo rosso non tornano con la loro cifra di controllo: '
@@ -558,7 +593,7 @@ function schedaMrz(r) {
     "<p>" + r.tipo_documento + " (" + r.sigla_documento + "), formato " + r.formato +
       ", letto in " + r.millisecondi + " ms" +
       (r.seconda_passata ? ", al secondo tentativo" : "") + ". <b>Sono giusti?</b></p>" +
-    avvertenza + campi +
+    quandoScade + avvertenza + campi +
     '<button id="conferma">Sì, i dati sono giusti</button>' +
     "<pre>" + r.righe.join("\n") + "</pre></div>";
 }
