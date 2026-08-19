@@ -24,7 +24,7 @@ import mrz
 import registro
 import volti
 
-VERSIONE = "0.13.0"
+VERSIONE = "0.13.1"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 PREDEFINITE = {"modello": "buffalo_l", "invio_prove": "", "soglia": 0.4, "soglia_sface": 0.363,
@@ -667,6 +667,11 @@ def _riconosci_con(immagini, attesi, modello, soglia, con_minifasnet=True):
     # senza, si saprebbe che l'ospite e' stato riconosciuto ma non se davanti
     # all'obiettivo c'era lui o la sua fotografia.
     per_atteso = {a["nome"]: (0.0, None) for a in attesi}
+    # Il posto nella lista come l'ha mandata chi chiama. Serve al registro
+    # dell'add-on, che deve poter dire chi ha fatto quale punteggio senza
+    # scrivere il nome di nessuno: il posto lo sa rileggere solo chi ha la
+    # lista, cioe' chi ha chiamato.
+    posizioni = {a["nome"]: numero + 1 for numero, a in enumerate(attesi)}
     sconosciuti = []
     for faccia in facce:
         migliore = ("", -1.0)
@@ -690,7 +695,8 @@ def _riconosci_con(immagini, attesi, modello, soglia, con_minifasnet=True):
     for sconosciuto in sconosciuti:
         del sconosciuto["vettore"]
 
-    punteggi = sorted(({"nome": n, "somiglianza": round(p, 4), "minifasnet": v}
+    punteggi = sorted(({"nome": n, "posizione": posizioni[n],
+                        "somiglianza": round(p, 4), "minifasnet": v}
                        for n, (p, v) in per_atteso.items()),
                       key=lambda x: -x["somiglianza"])
     riconosciuti = [p for p in punteggi if p["somiglianza"] >= soglia]
@@ -702,8 +708,10 @@ def _riconosci_con(immagini, attesi, modello, soglia, con_minifasnet=True):
         "tutti": punteggi,
         "volti_trovati": len(facce),
         "soglia": soglia,
+        # Con il nome, perche' chi chiama deve sapere chi respingere. Il
+        # quaderno lo scarta e il log ne scrive il numero.
         "respinti_da_minifasnet": [
-            r["nome"] for r in riconosciuti
+            r for r in riconosciuti
             if r["minifasnet"] and r["minifasnet"].get("misurata")
             and not r["minifasnet"]["persona_vera"]],
     }
@@ -743,6 +751,11 @@ def _alla_porta_con_l_altro(immagini, attesi, modello):
     return fuori
 
 
+def _numeri(riconosciuti):
+    """I riconosciuti come si scrivono nel registro: il numero, non il nome."""
+    return ["#%d" % r["posizione"] for r in riconosciuti]
+
+
 def _detto_alla_porta(nome, esito):
     """Come l'altro modello finisce nel registro dell'add-on, in una riga.
 
@@ -753,7 +766,7 @@ def _detto_alla_porta(nome, esito):
         return ", %s non misurato (%s)" % (nome, esito.get("motivo", ""))
     return ", %s riconosciuti %s su soglia %.3f, sconosciuti %d" % (
         nome,
-        ["%s %.3f" % (r["nome"], r["somiglianza"]) for r in esito["riconosciuti"]],
+        ["#%d %.3f" % (r["posizione"], r["somiglianza"]) for r in esito["riconosciuti"]],
         esito["soglia"], len(esito["sconosciuti"]))
 
 
@@ -790,11 +803,17 @@ def riconosci():
     # e' un filo alta. Senza il numero i due casi si confondono.
     fuori = ["%.2f su %d px" % (s["somiglianza_migliore"], s["larghezza_px"])
              for s in risposta["sconosciuti"]]
+    # **Nel log non entra nessun nome.** Al suo posto il numero dell'atteso, cioe'
+    # il suo posto nella lista arrivata con la richiesta. Il registro dell'add-on
+    # e' la terza superficie dopo il quaderno delle prove e l'invio a Home
+    # Assistant, ed era rimasta aperta: si legge dall'interfaccia, finisce nei
+    # log che si mandano quando si chiede aiuto, e la macchina dell'add-on non
+    # deve tenere i nomi (#20). Chi ha mandato la lista sa rileggere i numeri.
     log.info("riconosci (%s): %d facce in %d scatti, riconosciuti %s, sconosciuti %d %s, persone in piu' %d%s%s",
              modello, risposta["volti_trovati"], len(scatti),
-             ["%s %.3f" % (r["nome"], r["somiglianza"]) for r in risposta["riconosciuti"]],
+             ["#%d %.3f" % (r["posizione"], r["somiglianza"]) for r in risposta["riconosciuti"]],
              len(fuori), fuori, risposta["persone_in_piu"],
-             (", ma MiniFASNet respinge %s" % respinti) if respinti else "",
+             (", ma MiniFASNet respinge %s" % _numeri(respinti)) if respinti else "",
              "".join(_detto_alla_porta(n, d) for n, d in altri.items()))
     risposta.update({
         "scatti": len(scatti),

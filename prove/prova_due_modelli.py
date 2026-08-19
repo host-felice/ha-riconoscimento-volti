@@ -194,5 +194,32 @@ controlla("ma i punteggi dell'altro modello si sono salvati",
           "altri_modelli" in ultima and "punteggi" in ultima,
           str(sorted(ultima.keys()))[:120])
 
+print("\n9. nel registro dell'add-on non entra nessun nome, ma si legge chi per numero")
+import logging
+
+
+class Ascolta(logging.Handler):
+    """Tiene da parte quello che l'add-on scrive nel suo registro."""
+
+    def __init__(self):
+        logging.Handler.__init__(self)
+        self.righe = []
+
+    def emit(self, record):
+        self.righe.append(record.getMessage())
+
+
+orecchio = Ascolta()
+server.log.addHandler(orecchio)
+alla_porta(attesi_nuovi)
+alla_porta(attesi_nuovi, chi="estranea")
+server.log.removeHandler(orecchio)
+scritto = "\n".join(orecchio.righe)
+controlla("il registro ha scritto", "riconosci" in scritto, "%d righe" % len(orecchio.righe))
+for nome in ("FELICE", "PADRE"):
+    controlla("nessun nome %r nel registro" % nome, nome not in scritto)
+controlla("ma chi si legge, per numero", "#1" in scritto,
+          [r for r in orecchio.righe if "riconosci" in r][0][:120])
+
 print("\n" + ("TUTTO A POSTO" if not fallite else "FALLITE: " + ", ".join(fallite)))
 sys.exit(1 if fallite else 0)

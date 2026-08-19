@@ -3,6 +3,19 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.13.1
+
+- **Il registro dell'add-on non scrive piu' il nome dell'ospite.** Al suo posto
+  il numero, cioe' il posto nella lista degli attesi arrivata con la richiesta:
+  `riconosciuti ['#1 0.721', '#2 0.721']`. Chi ha mandato la lista sa rileggere
+  i numeri, chi legge il registro no. La 0.13.0 aveva chiuso il quaderno delle
+  prove e l'invio a Home Assistant e aveva lasciato aperta questa, che e' la
+  terza superficie: il registro si legge dall'interfaccia e finisce nei log che
+  si mandano quando si chiede aiuto. La macchina dell'add-on non deve tenere i
+  nomi.
+- Nella risposta i nomi restano, perche' chi chiama deve sapere chi e' arrivato.
+  Ogni atteso si porta dietro anche il suo numero.
+
 ## 0.13.0
 
 - **Alla porta si misurano tutti e due i modelli dei volti**, come il confronto
