@@ -90,6 +90,14 @@ def _rimpicciolisci(img, lato_lungo):
 
 
 def leggi(dati_binari):
+    """I byte di una foto diventano un'immagine. Un'immagine gia' aperta passa.
+
+    Il passaggio serve a chi deve guardare due volte la stessa foto (le facce
+    e poi MiniFASNet): aprire un JPEG da dodici megapixel costa, e farlo due
+    volte costa il doppio per niente.
+    """
+    if isinstance(dati_binari, np.ndarray):
+        return dati_binari
     img = cv2.imdecode(np.frombuffer(dati_binari, np.uint8), cv2.IMREAD_COLOR)
     if img is None:
         raise NessunVolto("immagine illeggibile")

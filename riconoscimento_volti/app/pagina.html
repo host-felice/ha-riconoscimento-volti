@@ -349,6 +349,18 @@ function avviso(testo) {
 
 /* ---- le due schede del risultato ---- */
 
+// MiniFASNet in una riga: il punteggio, il verdetto, e da dove viene il no.
+// Le due probabilità di attacco si mostrano solo quando il no c'è davvero,
+// perché è lì che serve sapere se ha visto della carta o uno schermo.
+function dettoMinifas(m) {
+  if (!m || !m.misurata) return "";
+  const dove = m.stampa >= m.schermo ? "una stampa" : "uno schermo";
+  return m.persona_vera
+    ? m.punteggio.toFixed(3) + " &#10003; una persona vera"
+    : m.punteggio.toFixed(3) + " &#10007; sembra " + dove +
+      " (stampa " + m.stampa.toFixed(2) + ", schermo " + m.schermo.toFixed(2) + ")";
+}
+
 function schedaVolto(r) {
   if (r.errore) return avviso("il confronto dei volti non è riuscito: " + r.errore);
   const fantasma = r.documento.altri_volti_px.length
@@ -366,6 +378,7 @@ function schedaVolto(r) {
     '<table class="dettagli">' +
       riga("faccia sul documento", r.documento.larghezza_px + " px, fiducia " + r.documento.fiducia) +
       riga("faccia nel selfie", r.selfie.larghezza_px + " px, fiducia " + r.selfie.fiducia) +
+      (dettoMinifas(r.minifasnet) ? riga("chi c'era davanti all'obiettivo", dettoMinifas(r.minifasnet)) : "") +
       vicino + riga("tempo", r.millisecondi + " ms") +
     "</table></div>";
 }
@@ -483,8 +496,11 @@ function schedaPorta(r) {
   let righe = "";
   for (const p of r.tutti) {
     const su = p.somiglianza >= r.soglia;
-    righe += "<tr" + (su ? ' style="color:#1a7f37"' : "") + "><td>" + p.nome +
-             "</td><td><b>" + p.somiglianza.toFixed(3) + "</b> " + (su ? "&#10003;" : "") + "</td></tr>";
+    const finto = su && p.minifasnet && p.minifasnet.misurata && !p.minifasnet.persona_vera;
+    righe += "<tr" + (su && !finto ? ' style="color:#1a7f37"' : "") + "><td>" + p.nome +
+             "</td><td><b>" + p.somiglianza.toFixed(3) + "</b> " + (su ? "&#10003;" : "") +
+             (finto ? '<br><span style="color:#b3261e">ma davanti alla telecamera era una fotografia, ' +
+                      p.minifasnet.punteggio.toFixed(3) + "</span>" : "") + "</td></tr>";
   }
   const estranei = r.sconosciuti.length
     ? '<div class="avviso">' + r.sconosciuti.length + " faccia/e non fra gli attesi (la migliore somiglia a "

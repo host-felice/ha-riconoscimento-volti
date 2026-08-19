@@ -18,13 +18,15 @@ from waitress import serve
 
 import cv2
 
+import minifasnet
 import mrz
 import volti
 
-VERSIONE = "0.7.3"
+VERSIONE = "0.8.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
-PREDEFINITE = {"soglia": 0.4, "volto_minimo_px": 80, "parola": "", "log_level": "info"}
+PREDEFINITE = {"soglia": 0.4, "soglia_minifasnet": 0.5, "volto_minimo_px": 80,
+               "parola": "", "log_level": "info"}
 LIMITE_CORPO = 32 * 1024 * 1024   # una foto di telefono sta larga in 32 MB
 
 
@@ -68,14 +70,19 @@ def _memoria_mb():
 
 
 def _guardiano():
-    """Ogni minuto guarda se il modello dei volti si puo' chiudere."""
+    """Ogni minuto guarda se i modelli si possono chiudere."""
     while True:
         time.sleep(60)
         try:
+            chiusi = []
             if volti.chiudi_se_inattiva():
+                chiusi.append("volti")
+            if minifasnet.chiudi_se_inattiva():
+                chiusi.append("minifasnet")
+            if chiusi:
                 mrz.restituisci_memoria()
-                log.info("modello dei volti chiuso per inattivita', memoria %s MB",
-                         _memoria_mb())
+                log.info("chiusi per inattivita': %s, memoria %s MB",
+                         " e ".join(chiusi), _memoria_mb())
         except Exception as guaio:
             log.warning("il guardiano della memoria e' inciampato: %s", guaio)
 
@@ -244,13 +251,80 @@ def _soglia():
         raise Errore("soglia non e' un numero: %r" % chiesta)
 
 
-def _analizza(dati):
-    return volti.volto_principale(dati, int(OPZIONI["volto_minimo_px"]))
+def _soglia_minifasnet():
+    """Quella delle opzioni, salvo che la richiesta ne chieda un'altra.
+
+    Le due strade non corrono lo stesso rischio e non vogliono lo stesso numero:
+    dal portale il selfie arriva da un browser qualunque e la soglia sta alta,
+    alla porta la telecamera e' nostra e un allarme sbagliato lascia una persona
+    chiusa fuori, quindi sta bassa.
+    """
+    corpo = _corpo_json()
+    chiesta = (corpo.get("soglia_minifasnet") if corpo is not None
+               else request.form.get("soglia_minifasnet"))
+    if chiesta is None:
+        return float(OPZIONI["soglia_minifasnet"])
+    try:
+        return float(chiesta)
+    except (TypeError, ValueError):
+        raise Errore("soglia_minifasnet non e' un numero: %r" % chiesta)
+
+
+def _chiesto_minifasnet():
+    """Se la richiesta vuole anche il controllo su chi c'era davanti all'obiettivo."""
+    corpo = _corpo_json()
+    valore = (corpo.get("minifasnet") if corpo is not None
+              else request.form.get("minifasnet"))
+    return str(valore).lower() not in ("none", "", "0", "no", "false")
+
+
+def _minifasnet(img, riquadro):
+    """Il giudizio di MiniFASNet, gia' confrontato con la sua soglia.
+
+    Se il modello non c'e' (add-on aggiornato ma immagine vecchia) non e' un
+    errore: si risponde che non e' stata misurata, e chi chiama lo vede.
+    """
+    if not minifasnet.disponibile():
+        return {"misurata": False, "motivo": "modello non installato"}
+    soglia = _soglia_minifasnet()
+    esito = minifasnet.misura(img, riquadro)
+    esito["misurata"] = True
+    esito["soglia"] = soglia
+    esito["persona_vera"] = esito["punteggio"] >= soglia
+    return esito
+
+
+def _analizza(dati, con_minifasnet=False):
+    """Il volto piu' grande, e se serve anche chi c'era davanti all'obiettivo.
+
+    L'immagine si apre una volta sola e si passa a tutti e due i modelli: le
+    foto dei telefoni sono grosse e aprirle due volte costa senza comprare
+    niente.
+    """
+    img = volti.leggi(dati)
+    esito = volti.volto_principale(img, int(OPZIONI["volto_minimo_px"]))
+    if con_minifasnet:
+        esito["minifasnet"] = _minifasnet(img, esito["riquadro"])
+    return esito
 
 
 def _millisecondi(partenza):
     """Quanto e' costata la richiesta. Serve a sapere se la macchina regge."""
     return int(round((time.time() - partenza) * 1000))
+
+
+def _detto(giudizio):
+    """Il giudizio di MiniFASNet come si legge nel registro, o niente se manca.
+
+    Le tre probabilita' si scrivono tutte e tre: sono loro a dire se un rifiuto
+    e' arrivato dalla carta o dallo schermo, e sul banco di prova servono a
+    verificare che l'ordine delle classi sia quello dichiarato dal modello.
+    """
+    if not giudizio or not giudizio.get("misurata"):
+        return ""
+    return ", minifasnet %.3f (stampa %.3f, schermo %.3f) %s" % (
+        giudizio["punteggio"], giudizio["stampa"], giudizio["schermo"],
+        "persona vera" if giudizio["persona_vera"] else "RESPINTA")
 
 
 def _senza_vettore(esito):
@@ -270,18 +344,26 @@ def salute():
         "versione": VERSIONE,
         "memoria_mb": _memoria_mb(),
         "soglia": float(OPZIONI["soglia"]),
+        "soglia_minifasnet": float(OPZIONI["soglia_minifasnet"]),
+        "minifasnet": minifasnet.disponibile(),
         "volto_minimo_px": int(OPZIONI["volto_minimo_px"]),
     })
 
 
 @app.route("/volto", methods=["POST"])
 def volto():
-    """Un'immagine, il vettore della faccia piu' grande che ci sta dentro."""
+    """Un'immagine, il vettore della faccia piu' grande che ci sta dentro.
+
+    MiniFASNet si chiede con il campo 'minifasnet', e non si calcola da solo
+    apposta: questa chiamata serve anche per la foto di un documento, dove una
+    faccia stampata e' quello che ci si aspetta di trovare.
+    """
     partenza = time.time()
-    esito = _analizza(_immagine("immagine"))
+    esito = _analizza(_immagine("immagine"), _chiesto_minifasnet())
     esito["millisecondi"] = _millisecondi(partenza)
-    log.info("volto: %d px, fiducia %.3f, altri %s",
-             esito["larghezza_px"], esito["fiducia"], esito["altri_volti_px"])
+    log.info("volto: %d px, fiducia %.3f, altri %s%s",
+             esito["larghezza_px"], esito["fiducia"], esito["altri_volti_px"],
+             _detto(esito.get("minifasnet")))
     return jsonify(esito)
 
 
@@ -294,16 +376,18 @@ def confronta():
     """
     partenza = time.time()
     documento = _analizza(_immagine("documento"))
-    selfie = _analizza(_immagine("selfie"))
+    selfie = _analizza(_immagine("selfie"), True)
     soglia = _soglia()
     punteggio = volti.somiglianza(documento["vettore"], selfie["vettore"])
-    log.info("confronta: %.4f contro soglia %.2f", punteggio, soglia)
+    log.info("confronta: %.4f contro soglia %.2f%s", punteggio, soglia,
+             _detto(selfie.get("minifasnet")))
     return jsonify({
         "somiglianza": punteggio,
         "soglia": soglia,
         "verificato": punteggio >= soglia,
         "documento": _senza_vettore(documento),
         "selfie": _senza_vettore(selfie),
+        "minifasnet": selfie.get("minifasnet"),
         "vettore_selfie": selfie["vettore"],
         "millisecondi": _millisecondi(partenza),
     })
@@ -328,23 +412,30 @@ def riconosci():
     scatti = _immagini("immagine")
     facce = []
     for dati in scatti:
+        img = volti.leggi(dati)
         try:
-            facce.extend(volti.tutti_i_volti(dati, int(OPZIONI["volto_minimo_px"])))
+            trovate = volti.tutti_i_volti(img, int(OPZIONI["volto_minimo_px"]))
         except volti.NessunVolto:
             continue
+        for faccia in trovate:
+            faccia["minifasnet"] = _minifasnet(img, faccia["riquadro"])
+        facce.extend(trovate)
     if not facce:
         raise volti.NessunVolto("nessun volto trovato in nessuno degli scatti")
 
     # Per ogni faccia il suo miglior candidato, e per ogni atteso la sua
     # miglior faccia: sono due domande diverse e servono tutte e due.
-    per_atteso = {a["nome"]: 0.0 for a in attesi}
+    # Insieme al punteggio si tiene il giudizio sulla faccia che lo ha fatto:
+    # senza, si saprebbe che l'ospite e' stato riconosciuto ma non se davanti
+    # all'obiettivo c'era lui o la sua fotografia.
+    per_atteso = {a["nome"]: (0.0, None) for a in attesi}
     sconosciuti = []
     for faccia in facce:
         migliore = ("", -1.0)
         for atteso in attesi:
             punteggio = volti.somiglianza(faccia["vettore"], atteso["vettore"])
-            if punteggio > per_atteso[atteso["nome"]]:
-                per_atteso[atteso["nome"]] = punteggio
+            if punteggio > per_atteso[atteso["nome"]][0]:
+                per_atteso[atteso["nome"]] = (punteggio, faccia.get("minifasnet"))
             if punteggio > migliore[1]:
                 migliore = (atteso["nome"], punteggio)
         if migliore[1] < soglia:
@@ -352,9 +443,11 @@ def riconosci():
                 "larghezza_px": faccia["larghezza_px"],
                 "somiglianza_migliore": migliore[1],
                 "assomiglia_a": migliore[0],
+                "minifasnet": faccia.get("minifasnet"),
             })
 
-    punteggi = sorted(({"nome": n, "somiglianza": round(p, 4)} for n, p in per_atteso.items()),
+    punteggi = sorted(({"nome": n, "somiglianza": round(p, 4), "minifasnet": v}
+                       for n, (p, v) in per_atteso.items()),
                       key=lambda x: -x["somiglianza"])
     riconosciuti = [p for p in punteggi if p["somiglianza"] >= soglia]
     # Lo sconosciuto si porta dietro il suo punteggio: uno 0,05 e' un falso
@@ -362,9 +455,13 @@ def riconosci():
     # e' un filo alta. Senza il numero i due casi si confondono.
     fuori = ["%.2f su %d px" % (s["somiglianza_migliore"], s["larghezza_px"])
              for s in sconosciuti]
-    log.info("riconosci: %d facce in %d scatti, riconosciuti %s, sconosciuti %d %s",
+    respinti = [r["nome"] for r in riconosciuti
+                if r["minifasnet"] and r["minifasnet"].get("misurata")
+                and not r["minifasnet"]["persona_vera"]]
+    log.info("riconosci: %d facce in %d scatti, riconosciuti %s, sconosciuti %d %s%s",
              len(facce), len(scatti), [r["nome"] for r in riconosciuti],
-             len(fuori), fuori)
+             len(fuori), fuori,
+             (", ma MiniFASNet respinge %s" % respinti) if respinti else "")
     return jsonify({
         "riconosciuti": riconosciuti,
         "sconosciuti": sconosciuti,

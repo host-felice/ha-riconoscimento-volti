@@ -21,11 +21,14 @@ RUN pip3 install --no-cache-dir -r /tmp/requirements.txt \
     && pip3 uninstall -y opencv-python \
     && pip3 install --no-cache-dir --force-reinstall opencv-python-headless==4.12.0.88
 
-# I modelli dei volti, scaricati una volta sola qui e non a ogni avvio.
-# YuNet trova le facce (227 KB), ArcFace le trasforma in numeri (166 MB).
+# I modelli, scaricati una volta sola qui e non a ogni avvio.
+# YuNet trova le facce (227 KB), ArcFace le trasforma in numeri (166 MB),
+# MiniFASNet dice se davanti all'obiettivo c'era una persona (1,7 MB).
 RUN mkdir -p /modelli \
     && curl -fsSL -o /modelli/yunet.onnx \
        https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx \
+    && curl -fsSL -o /modelli/minifasnet_v2.onnx \
+       https://huggingface.co/garciafido/minifasnet-v2-anti-spoofing-onnx/resolve/main/minifasnet_v2.onnx \
     && curl -fsSL -o /tmp/buffalo_l.zip \
        https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_l.zip \
     && unzip -j -o /tmp/buffalo_l.zip w600k_r50.onnx -d /modelli \
