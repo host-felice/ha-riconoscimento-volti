@@ -3,6 +3,24 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.13.0
+
+- **Alla porta si misurano tutti e due i modelli dei volti**, come il confronto
+  documento-selfie faceva gia'. Prima il riconoscimento girava con uno solo, e
+  fra i due si sarebbe deciso senza averli mai visti nel caso che conta: le
+  facce alla porta arrivano di lontano, di sbieco e piu' d'una per scatto.
+  L'ospite entra fra gli attesi con **un vettore per modello**, perche' il
+  selfie sparisce subito e dopo non c'e' piu' modo di rifarlo.
+- **Chi era registrato prima non resta fuori.** Con un vettore solo la porta
+  risponde come sempre e l'altro modello dice che non si e' potuto misurare, con
+  il perche'. Nessuna misura di confronto puo' costare a una persona la porta
+  chiusa: se il secondo giro inciampa, il primo vale lo stesso.
+- **Il quaderno delle prove non scrive piu' il nome dell'ospite.** Ci finiva da
+  sempre, nascosto in "a chi assomiglia" la faccia sconosciuta: non si chiamava
+  "nome", quindi il filtro lo lasciava passare. Il quaderno viaggia verso Home
+  Assistant quando la persona acconsente, e li' dentro devono restare solo
+  numeri che non riportano a nessuno.
+
 ## 0.12.1
 
 - **Tolto l'allarme "il documento sembra ripreso da uno schermo".** Su un

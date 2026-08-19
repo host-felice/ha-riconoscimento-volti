@@ -24,7 +24,7 @@ import mrz
 import registro
 import volti
 
-VERSIONE = "0.12.1"
+VERSIONE = "0.13.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 PREDEFINITE = {"modello": "buffalo_l", "invio_prove": "", "soglia": 0.4, "soglia_sface": 0.363,
@@ -239,9 +239,38 @@ def _attesi():
     if not isinstance(attesi, list) or not attesi:
         raise Errore("'attesi' deve essere una lista non vuota")
     for atteso in attesi:
-        if not isinstance(atteso, dict) or "nome" not in atteso or "vettore" not in atteso:
-            raise Errore("ogni atteso vuole 'nome' e 'vettore'")
+        if not isinstance(atteso, dict) or "nome" not in atteso:
+            raise Errore("ogni atteso vuole 'nome' e il suo vettore")
+        if "vettore" not in atteso and not isinstance(atteso.get("vettori"), dict):
+            raise Errore("l'atteso %r non ha ne' 'vettore' ne' 'vettori'"
+                         % atteso.get("nome"))
     return attesi
+
+
+def _attesi_per(attesi, modello, anche_senza_firma=False):
+    """Gli attesi che hanno un vettore fatto da questo modello, e solo quelli.
+
+    **Un vettore vale per il modello che lo ha fatto e per nessun altro.** Chi
+    registra l'ospite puo' tenerne uno per modello, in 'vettori', e allora si
+    prende quello giusto.
+
+    Un 'vettore' da solo non dice chi lo ha fatto, e va trattato per quello che
+    e': **si presta al modello in uso e a nessun altro.** Prestarlo anche
+    all'altro e' l'errore che una prova ha trovato il 19 agosto 2026: i due
+    vettori hanno lunghezze diverse, il confronto si rifiuta, e la persona
+    restava fuori dalla porta per una misura che nessuno le aveva chiesto.
+
+    Se per un modello non c'e' nessun vettore la risposta e' una lista vuota, e
+    tocca a chi chiama dire che quella misura non si e' potuta fare.
+    """
+    fuori = []
+    for atteso in attesi:
+        vettori = atteso.get("vettori")
+        if isinstance(vettori, dict) and modello in vettori:
+            fuori.append({"nome": atteso["nome"], "vettore": vettori[modello]})
+        elif anche_senza_firma and "vettore" in atteso:
+            fuori.append({"nome": atteso["nome"], "vettore": atteso["vettore"]})
+    return fuori
 
 
 def _modello():
@@ -273,6 +302,15 @@ def _anche_l_altro():
     return str(valore).lower() not in ("none", "", "0", "no", "false")
 
 
+def _soglia_di(modello):
+    """La soglia delle opzioni per quel modello, senza guardare la richiesta.
+
+    Serve dove il modello non e' quello chiesto: quando si misura anche l'altro,
+    la soglia scritta nella richiesta e' la sua, non quella dell'altro.
+    """
+    return float(OPZIONI["soglia_sface"] if modello == "sface" else OPZIONI["soglia"])
+
+
 def _soglia(modello=None):
     """Quella scritta nelle opzioni, salvo che la richiesta ne chieda un'altra.
 
@@ -285,9 +323,7 @@ def _soglia(modello=None):
     corpo = _corpo_json()
     chiesta = corpo.get("soglia") if corpo is not None else request.form.get("soglia")
     if chiesta is None:
-        if modello == "sface":
-            return float(OPZIONI["soglia_sface"])
-        return float(OPZIONI["soglia"])
+        return _soglia_di(modello)
     try:
         return float(chiesta)
     except (TypeError, ValueError):
@@ -441,10 +477,15 @@ def _con_l_altro_modello(documento, selfie, modello):
             s = volti.volto_principale(selfie["_img"], px, altro)
         except volti.NessunVolto:
             continue
-        soglia = float(OPZIONI["soglia_sface"]) if altro == "sface" else float(OPZIONI["soglia"])
+        soglia = _soglia_di(altro)
         punteggio = volti.somiglianza(d["vettore"], s["vettore"])
         fuori[altro] = {"somiglianza": punteggio, "soglia": soglia,
-                        "verificato": punteggio >= soglia}
+                        "verificato": punteggio >= soglia,
+                        # Il vettore del selfie fatto da lui. Va restituito
+                        # perche' e' l'unico momento in cui esiste: la foto
+                        # sparisce, e senza questo alla porta l'altro modello
+                        # non avrebbe niente contro cui confrontare.
+                        "vettore_selfie": s["vettore"]}
     return fuori
 
 
@@ -588,33 +629,31 @@ def confronta():
     return jsonify(risposta)
 
 
-@app.route("/riconosci", methods=["POST"])
-def riconosci():
-    """Chi degli ospiti attesi si e' presentato davanti alla telecamera.
+def _riconosci_con(immagini, attesi, modello, soglia, con_minifasnet=True):
+    """Chi degli attesi si e' presentato, misurato con un modello solo.
 
-    Uno scatto puo' contenere piu' facce, perche' gli ospiti di una prenotazione
-    arrivano insieme, e si possono mandare piu' scatti di fila: per ogni ospite
-    resta il punteggio migliore fra tutte le facce di tutti gli scatti.
+    Sta fuori dalla chiamata perche' si esegue **due volte**: una con il modello
+    in uso e una con l'altro, sugli stessi scatti e contro gli stessi attesi. Fra
+    i due modelli non si decide discutendone, si decide mettendoli uno accanto
+    all'altro sulle stesse facce, ed e' quello che il confronto documento-selfie
+    faceva gia' e la porta no.
 
-    Gli attesi arrivano nel campo 'attesi', una lista di {nome, vettore}. Chi
-    chiama decide chi metterci dentro: gli ospiti delle prenotazioni attive
-    oggi, non tutti quelli che sono passati.
+    Le immagini arrivano **gia' aperte**: gli stessi scatti passano due volte, e
+    un JPEG da dodici megapixel aperto due volte costa il doppio per niente.
+
+    MiniFASNet si misura solo al primo giro. Chi c'era davanti all'obiettivo non
+    dipende dal modello dei volti: rifarlo darebbe lo stesso numero al doppio
+    del prezzo.
     """
-    partenza = time.time()
-    attesi = _attesi()
-    modello = _modello()
-    soglia = _soglia(modello)
-
-    scatti = _immagini("immagine")
     facce = []
-    for numero, dati in enumerate(scatti):
-        img = volti.leggi(dati)
+    for numero, img in enumerate(immagini):
         try:
             trovate = volti.tutti_i_volti(img, int(OPZIONI["volto_minimo_px"]), modello)
         except volti.NessunVolto:
             continue
         for faccia in trovate:
-            faccia["minifasnet"] = _minifasnet(img, faccia["riquadro"])
+            faccia["minifasnet"] = (_minifasnet(img, faccia["riquadro"])
+                                    if con_minifasnet else None)
             # Da quale dei tre scatti viene: serve sotto, a distinguere una
             # persona da un fotogramma mosso.
             faccia["scatto"] = numero
@@ -655,36 +694,120 @@ def riconosci():
                        for n, (p, v) in per_atteso.items()),
                       key=lambda x: -x["somiglianza"])
     riconosciuti = [p for p in punteggi if p["somiglianza"] >= soglia]
-    # Lo sconosciuto si porta dietro il suo punteggio: uno 0,05 e' un falso
-    # rilevamento, uno 0,35 e' un ospite ripreso male e dice che la soglia
-    # e' un filo alta. Senza il numero i due casi si confondono.
-    fuori = ["%.2f su %d px" % (s["somiglianza_migliore"], s["larghezza_px"])
-             for s in sconosciuti]
-    respinti = [r["nome"] for r in riconosciuti
-                if r["minifasnet"] and r["minifasnet"].get("misurata")
-                and not r["minifasnet"]["persona_vera"]]
-    log.info("riconosci (%s): %d facce in %d scatti, riconosciuti %s, sconosciuti %d %s, persone in piu' %d%s",
-             modello, len(facce), len(scatti),
-             ["%s %.3f" % (r["nome"], r["somiglianza"]) for r in riconosciuti],
-             len(fuori), fuori, persone_in_piu,
-             (", ma MiniFASNet respinge %s" % respinti) if respinti else "")
-    risposta = {
+    return {
         "modello": modello,
         "riconosciuti": riconosciuti,
         "sconosciuti": sconosciuti,
         "persone_in_piu": persone_in_piu,
         "tutti": punteggi,
         "volti_trovati": len(facce),
-        "scatti": len(scatti),
         "soglia": soglia,
-        "millisecondi": _millisecondi(partenza),
+        "respinti_da_minifasnet": [
+            r["nome"] for r in riconosciuti
+            if r["minifasnet"] and r["minifasnet"].get("misurata")
+            and not r["minifasnet"]["persona_vera"]],
     }
+
+
+def _alla_porta_con_l_altro(immagini, attesi, modello):
+    """Lo stesso riconoscimento rifatto con l'altro modello, sugli stessi scatti.
+
+    Alla porta la misura non e' quella del confronto documento-selfie, e non
+    basta averla fatta la': qui le facce arrivano di lontano, di sbieco e piu'
+    d'una per scatto, che e' il caso in cui i due modelli possono comportarsi
+    diverso.
+
+    **Puo' non essere misurabile, e non e' un guasto.** L'ospite registrato con
+    un vettore solo non ha niente contro cui confrontare l'altro modello: si dice
+    che non si e' potuto misurare e perche', invece di far cadere la risposta o
+    di confrontare numeri che non si parlano.
+    """
+    fuori = {}
+    for altro in volti.CATALOGO:
+        if altro == modello or not volti.disponibile(altro):
+            continue
+        suoi = _attesi_per(attesi, altro)
+        if not suoi:
+            fuori[altro] = {"misurato": False,
+                            "motivo": "nessun atteso ha un vettore fatto da questo modello"}
+            continue
+        try:
+            esito = _riconosci_con(immagini, suoi, altro, _soglia_di(altro),
+                                   con_minifasnet=False)
+        except (volti.NessunVolto, volti.ModelliDiversi) as e:
+            fuori[altro] = {"misurato": False, "motivo": str(e)}
+            continue
+        esito["misurato"] = True
+        esito["quanti_attesi"] = len(suoi)
+        fuori[altro] = esito
+    return fuori
+
+
+def _detto_alla_porta(nome, esito):
+    """Come l'altro modello finisce nel registro dell'add-on, in una riga.
+
+    Se non si e' potuto misurare si scrive perche': un posto vuoto nel log
+    sembrerebbe un modello che non trova nessuno, che e' un'altra cosa.
+    """
+    if not esito.get("misurato"):
+        return ", %s non misurato (%s)" % (nome, esito.get("motivo", ""))
+    return ", %s riconosciuti %s su soglia %.3f, sconosciuti %d" % (
+        nome,
+        ["%s %.3f" % (r["nome"], r["somiglianza"]) for r in esito["riconosciuti"]],
+        esito["soglia"], len(esito["sconosciuti"]))
+
+
+@app.route("/riconosci", methods=["POST"])
+def riconosci():
+    """Chi degli ospiti attesi si e' presentato davanti alla telecamera.
+
+    Uno scatto puo' contenere piu' facce, perche' gli ospiti di una prenotazione
+    arrivano insieme, e si possono mandare piu' scatti di fila: per ogni ospite
+    resta il punteggio migliore fra tutte le facce di tutti gli scatti.
+
+    Gli attesi arrivano nel campo 'attesi'. Ognuno vuole un 'nome' e il suo
+    vettore: 'vettore' se ne ha uno solo, oppure 'vettori' con uno per modello,
+    che e' cio' che serve per misurare tutti e due alla porta. Chi chiama decide
+    chi metterci dentro: gli ospiti delle prenotazioni attive oggi, non tutti
+    quelli che sono passati.
+    """
+    partenza = time.time()
+    attesi = _attesi()
+    modello = _modello()
+    soglia = _soglia(modello)
+    suoi = _attesi_per(attesi, modello, anche_senza_firma=True)
+    if not suoi:
+        raise Errore("nessuno degli attesi ha un vettore fatto da %r" % modello)
+
+    scatti = _immagini("immagine")
+    immagini = [volti.leggi(dati) for dati in scatti]
+    risposta = _riconosci_con(immagini, suoi, modello, soglia)
+    altri = _alla_porta_con_l_altro(immagini, attesi, modello) if _anche_l_altro() else {}
+
+    respinti = risposta["respinti_da_minifasnet"]
+    # Lo sconosciuto si porta dietro il suo punteggio: uno 0,05 e' un falso
+    # rilevamento, uno 0,35 e' un ospite ripreso male e dice che la soglia
+    # e' un filo alta. Senza il numero i due casi si confondono.
+    fuori = ["%.2f su %d px" % (s["somiglianza_migliore"], s["larghezza_px"])
+             for s in risposta["sconosciuti"]]
+    log.info("riconosci (%s): %d facce in %d scatti, riconosciuti %s, sconosciuti %d %s, persone in piu' %d%s%s",
+             modello, risposta["volti_trovati"], len(scatti),
+             ["%s %.3f" % (r["nome"], r["somiglianza"]) for r in risposta["riconosciuti"]],
+             len(fuori), fuori, risposta["persone_in_piu"],
+             (", ma MiniFASNet respinge %s" % respinti) if respinti else "",
+             "".join(_detto_alla_porta(n, d) for n, d in altri.items()))
+    risposta.update({
+        "scatti": len(scatti),
+        "altri_modelli": altri,
+        "millisecondi": _millisecondi(partenza),
+    })
     # Nel registro i nomi non entrano (li toglie lui), restano i punteggi: sono
     # quelli a dire se la soglia alla porta e' quella giusta. E vale la stessa
     # risposta data prima del confronto: la porta non e' una seconda domanda.
     risposta["prova_mandata"] = _registra(
-        "riconosci", dict(risposta, punteggi=[p["somiglianza"] for p in punteggi],
-                          quanti_riconosciuti=len(riconosciuti)))
+        "riconosci", dict(risposta,
+                          punteggi=[p["somiglianza"] for p in risposta["tutti"]],
+                          quanti_riconosciuti=len(risposta["riconosciuti"])))
     return jsonify(risposta)
 
 

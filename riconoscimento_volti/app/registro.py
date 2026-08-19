@@ -30,8 +30,12 @@ _una_alla_volta = threading.Lock()
 
 # I campi che non escono di qui nemmeno per sbaglio. Il controllo si fa sui
 # nomi e non sulla buona volonta' di chi aggiunge una riga fra un anno.
+# "assomiglia_a" e "respinti_da_minifasnet" sono nomi di ospiti travestiti da
+# altro, ed e' cosi' che un campo vietato entra: non chiamandosi "nome". Il
+# primo stava nel quaderno da sempre, trovato da una prova il 19 agosto 2026.
 VIETATI = ("vettore", "vettore_selfie", "vettori", "punti", "riga", "immagine",
-           "nome", "nomi", "attesi", "riconosciuti", "_img")
+           "nome", "nomi", "attesi", "riconosciuti", "assomiglia_a",
+           "respinti_da_minifasnet", "_img")
 
 
 def _ripulisci(dato):

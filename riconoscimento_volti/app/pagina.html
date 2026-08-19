@@ -372,7 +372,7 @@ document.getElementById("vai").addEventListener("click", async () => {
   perVolto.append("consenso_invio", consenso === "si" ? "si" : "no");
   const [volto, dati] = await Promise.all([chiama("confronta", perVolto), chiama("mrz", perMrz)]);
   mostra(schedaVolto(volto) + schedaMrz(dati));
-  if (volto.verificato && volto.vettore_selfie) registra(volto.vettore_selfie, dati);
+  if (volto.verificato && volto.vettore_selfie) registra(volto, dati);
 
   bottone.disabled = false; bottone.textContent = "Controlla";
 });
@@ -487,12 +487,19 @@ function riga(chiave, valore) {
 
 /* ---- gli ospiti attesi di questa prenotazione, tenuti nel telefono ---- */
 
-function registra(vettore, dati) {
+function registra(volto, dati) {
   const nome = (dati && dati.campi && !dati.errore)
     ? [dati.campi.nome.valore, dati.campi.cognome.valore].filter(Boolean).join(" ")
     : "ospite " + (attesi.length + 1);
+  // Un vettore per modello, non uno solo. Il selfie sparisce appena finita la
+  // risposta: se qui si tenesse solo quello del modello in uso, alla porta
+  // l'altro non avrebbe niente contro cui confrontarsi, e non ci sarebbe piu'
+  // modo di rifarlo.
+  const vettori = { [volto.modello]: volto.vettore_selfie };
+  for (const [n, d] of Object.entries(volto.altri_modelli || {}))
+    if (d.vettore_selfie) vettori[n] = d.vettore_selfie;
   attesi = attesi.filter(a => a.nome !== nome)
-                 .concat([{ nome: nome, vettore: vettore, quando: Date.now() }]);
+                 .concat([{ nome: nome, vettori: vettori, quando: Date.now() }]);
   localStorage.setItem("attesi", JSON.stringify(attesi));
   scriviAttesi();
 }
@@ -530,6 +537,9 @@ async function raffica() {
   const dati = new FormData();
   scatti.forEach((s, i) => dati.append("immagine", s, "porta" + i + ".jpg"));
   dati.append("attesi", JSON.stringify(attesi));
+  // Anche qui si sta misurando: alla porta le facce arrivano di lontano e di
+  // sbieco, ed e' il caso in cui i due modelli possono dire cose diverse.
+  dati.append("anche_l_altro", "si");
   dati.append("consenso_invio", consenso === "si" ? "si" : "no");
   const r = await chiama("riconosci", dati);
   esito.innerHTML = schedaPorta(r);
@@ -571,7 +581,17 @@ function schedaPorta(r) {
       (dentro ? "Riconosciuti " + dentro + " su " + r.tutti.length : "Nessuno riconosciuto") + "</div>" +
     "<p>" + r.volti_trovati + " facce in " + r.scatti + " scatti, soglia " + r.soglia.toFixed(2) +
     ", " + r.millisecondi + " ms</p>" + estranei +
-    '<table class="dettagli">' + righe + "</table></div>";
+    '<table class="dettagli">' + righe +
+      riga("modello", r.modello) +
+      Object.entries(r.altri_modelli || {}).map(([n, d]) =>
+        riga("l&rsquo;altro modello", d.misurato
+          ? n + " " + (d.riconosciuti.length
+              ? d.riconosciuti.map(x => x.somiglianza.toFixed(3)).join(", ")
+              : "nessuno riconosciuto")
+            + " su soglia " + d.soglia.toFixed(3)
+            + ", " + d.riconosciuti.length + " su " + d.tutti.length
+          : n + ": non misurato, " + d.motivo)).join("") +
+    "</table></div>";
 }
 </script>
 </body>
