@@ -24,7 +24,7 @@ import mrz
 import registro
 import volti
 
-VERSIONE = "0.10.1"
+VERSIONE = "0.11.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 PREDEFINITE = {"modello": "buffalo_l", "invio_prove": "", "soglia": 0.4, "soglia_sface": 0.363,
@@ -398,6 +398,26 @@ def _con_l_altro_modello(documento, selfie, modello):
     return fuori
 
 
+def _telefono():
+    """Android o iPhone, e nient'altro.
+
+    La marca da sola non spiega niente, ma i due mondi trattano le fotografie
+    in modo diverso prima ancora che escano dalla fotocamera, e se un giorno i
+    punteggi si spaccassero in due gruppi questa e' la prima cosa da guardare.
+
+    **Si tiene solo la famiglia, non la riga intera del browser.** Quella
+    riga e' lunga, dice modello e versione e in mezzo a poche prove riporta a
+    una persona sola. "android" e "iphone" no.
+    """
+    ua = (request.headers.get("User-Agent") or "").lower()
+    for pezzo, nome in (("iphone", "iphone"), ("ipad", "ipad"),
+                        ("android", "android"), ("macintosh", "mac"),
+                        ("windows", "windows")):
+        if pezzo in ua:
+            return nome
+    return "altro"
+
+
 def _millisecondi(partenza):
     """Quanto e' costata la richiesta. Serve a sapere se la macchina regge."""
     return int(round((time.time() - partenza) * 1000))
@@ -518,6 +538,7 @@ def confronta():
         "altri_modelli": altri,
         "millisecondi": _millisecondi(partenza),
     }
+    risposta["telefono"] = _telefono()
     pulita = registro.ripulita("confronta", risposta)
     registro.scrivi_riga(pulita)
     risposta["prova_mandata"] = (
@@ -592,8 +613,9 @@ def riconosci():
     respinti = [r["nome"] for r in riconosciuti
                 if r["minifasnet"] and r["minifasnet"].get("misurata")
                 and not r["minifasnet"]["persona_vera"]]
-    log.info("riconosci: %d facce in %d scatti, riconosciuti %s, sconosciuti %d %s%s",
-             len(facce), len(scatti), [r["nome"] for r in riconosciuti],
+    log.info("riconosci (%s): %d facce in %d scatti, riconosciuti %s, sconosciuti %d %s%s",
+             modello, len(facce), len(scatti),
+             ["%s %.3f" % (r["nome"], r["somiglianza"]) for r in riconosciuti],
              len(fuori), fuori,
              (", ma MiniFASNet respinge %s" % respinti) if respinti else "")
     risposta = {
@@ -608,7 +630,8 @@ def riconosci():
     }
     # Nel registro i nomi non entrano (li toglie lui), restano i punteggi: sono
     # quelli a dire se la soglia alla porta e' quella giusta.
-    registro.scrivi("riconosci", dict(risposta, punteggi=[p["somiglianza"] for p in punteggi],
+    registro.scrivi("riconosci", dict(risposta, telefono=_telefono(),
+                                      punteggi=[p["somiglianza"] for p in punteggi],
                                       quanti_riconosciuti=len(riconosciuti)))
     return jsonify(risposta)
 

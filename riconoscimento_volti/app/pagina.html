@@ -148,6 +148,7 @@
     <div class="avviso risoluzione" style="display:none"></div>
     <div class="bottoni" style="margin-top:.6rem">
       <button data-scatta="selfie">Scatta</button>
+      <button class="chiaro" data-gira="selfie">Gira</button>
       <button class="chiaro" data-annulla="selfie">Annulla</button>
     </div>
   </div>
@@ -184,6 +185,7 @@
     <div class="avviso risoluzione" style="display:none"></div>
     <div class="bottoni" style="margin-top:.6rem">
       <button data-scatta="porta">Scatta tre foto</button>
+      <button class="chiaro" data-gira="porta">Gira</button>
       <button class="chiaro" data-annulla="porta">Annulla</button>
     </div>
   </div>
@@ -259,17 +261,30 @@ function controllaPronto() {
 
 /* ---- fotocamera dal vivo ---- */
 
+// Da che parte guarda ogni fotocamera. I documenti si fotografano con quella
+// dietro, le facce con quella davanti, ma alla porta dipende da come si tiene
+// il telefono e non c'e' una risposta giusta: per questo si puo' girare.
+const versi = { documento: "environment", retro: "environment",
+                selfie: "user", porta: "user" };
+
+function gira(chiave) {
+  versi[chiave] = versi[chiave] === "user" ? "environment" : "user";
+  spegni(chiave);
+  accendi(chiave);
+}
+
+
 async function accendi(chiave) {
   const mirino = document.getElementById("mirino_" + chiave);
   const video = mirino.querySelector("video");
-  const davanti = chiave === "selfie";
+  const davanti = versi[chiave] === "user";
   try {
     // Per i documenti si chiede tutto quello che la fotocamera sa dare: le due
     // righe di caratteri si leggono solo se sono grandi abbastanza.
     const largo = davanti ? 1920 : 3840;
     flussi[chiave] = await navigator.mediaDevices.getUserMedia({
       video: {
-        facingMode: { ideal: davanti ? "user" : "environment" },
+        facingMode: { ideal: versi[chiave] },
         width: { ideal: largo }, height: { ideal: Math.round(largo * 9 / 16) }
       }
     });
@@ -334,6 +349,7 @@ document.addEventListener("click", ev => {
   if (b.dataset.scatta === "porta") raffica();
   else if (b.dataset.scatta) scatta(b.dataset.scatta);
   if (b.dataset.annulla) spegni(b.dataset.annulla);
+  if (b.dataset.gira) gira(b.dataset.gira);
   if (b.id === "conferma") conferma(b);
 });
 
