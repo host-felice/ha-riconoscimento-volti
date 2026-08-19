@@ -3,6 +3,27 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.14.0
+
+Due regole che erano decise e non erano costruite. Vengono da una sessione di
+prova del 19 agosto 2026 andata storta.
+
+- **Due tentativi, mai tre.** Al primo fallimento il banco di prova consiglia le
+  migliorie che spostano davvero il punteggio, con i numeri misurati accanto. Al
+  secondo si ferma e propone le due strade: mandare documento e selfie all'host
+  per la convalida, oppure il controllo di persona all'arrivo. Prima non contava
+  niente, e un quattordicenne ha riprovato quattro volte davanti alla sua
+  famiglia mentre i punteggi salivano perche' migliorava l'inquadratura: alla
+  fine non si sapeva piu' quale numero fosse il suo.
+- **Non esiste l'ospite senza dati.** Il ripiego che chiamava l'ospite
+  "ospite 1" quando il documento non si leggeva e' stato tolto. L'identita' di un
+  ospite sono i suoi dati, e il doppione si riconosce su quelli: prima la stessa
+  persona finiva due volte nella lista, una col nome letto e una col ripiego, e
+  alla porta le due voci agganciavano la stessa faccia con lo stesso punteggio.
+  Due voci per una persona contano due arrivi dove ce n'e' uno, e chi e' arrivato
+  davvero e' quello che finisce in Questura. Le voci salvate prima di questa
+  versione non hanno identita' e vengono buttate.
+
 ## 0.13.1
 
 - **Il registro dell'add-on non scrive piu' il nome dell'ospite.** Al suo posto

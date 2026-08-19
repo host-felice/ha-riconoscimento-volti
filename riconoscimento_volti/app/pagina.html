@@ -200,6 +200,13 @@ const LATO_MRZ = 3000;   // i caratteri sono piccoli, qui la risoluzione serve
 const foto = { documento: null, retro: null, selfie: null };
 const flussi = { documento: null, retro: null, selfie: null, porta: null };
 const ORE_DI_VITA = 24;
+// Deciso in #12: primo tentativo con le migliorie consigliate, secondo fallimento
+// e si propone la convalida dell'host. Mai tre, mai quattro. Il 19 agosto 2026 un
+// quattordicenne ne ha fatti quattro davanti alla sua famiglia, e alla fine quei
+// quattro punteggi non dicevano piu' quale rappresentasse lui.
+const TENTATIVI_MAX = 2;
+let tentativi = 0;
+let esauriti = false;
 let attesi = ripesca();
 
 function ripesca() {
@@ -207,7 +214,9 @@ function ripesca() {
   // sono vettori di facce, e dopo un giorno non servono piu' a niente.
   const scaduta = Date.now() - ORE_DI_VITA * 3600 * 1000;
   const salvati = JSON.parse(localStorage.getItem("attesi") || "[]")
-    .filter(a => (a.quando || 0) > scaduta);
+    // Senza identita' non si tiene: sono le voci registrate prima di questa
+    // versione, e fra loro ci sono i doppioni del 19 agosto 2026.
+    .filter(a => (a.quando || 0) > scaduta && a.id);
   localStorage.setItem("attesi", JSON.stringify(salvati));
   return salvati;
 }
@@ -253,10 +262,11 @@ function scegliTipo(scelto) {
 
 function controllaPronto() {
   const serveRetro = tipo === "carta";
-  document.getElementById("vai").disabled =
+  document.getElementById("vai").disabled = esauriti ||
     !(tipo && foto.documento && foto.selfie && (!serveRetro || foto.retro) && consenso);
-  document.getElementById("vai").textContent =
-    consenso ? "Controlla" : "Controlla (rispondi prima qui sopra)";
+  document.getElementById("vai").textContent = esauriti
+    ? "Due tentativi fatti"
+    : (consenso ? "Controlla" : "Controlla (rispondi prima qui sopra)");
 }
 
 /* ---- fotocamera dal vivo ---- */
@@ -351,6 +361,7 @@ document.addEventListener("click", ev => {
   if (b.dataset.annulla) spegni(b.dataset.annulla);
   if (b.dataset.gira) gira(b.dataset.gira);
   if (b.id === "conferma") conferma(b);
+  if (b.dataset.scampo) scampo(b.dataset.scampo);
 });
 
 /* ---- il controllo ---- */
@@ -372,10 +383,63 @@ document.getElementById("vai").addEventListener("click", async () => {
   perVolto.append("consenso_invio", consenso === "si" ? "si" : "no");
   const [volto, dati] = await Promise.all([chiama("confronta", perVolto), chiama("mrz", perMrz)]);
   mostra(schedaVolto(volto) + schedaMrz(dati));
-  if (volto.verificato && volto.vettore_selfie) registra(volto, dati);
-
-  bottone.disabled = false; bottone.textContent = "Controlla";
+  if (volto.verificato && volto.vettore_selfie) {
+    tentativi = 0;
+    registra(volto, dati);
+  } else {
+    tentativi++;
+    esauriti = tentativi >= TENTATIVI_MAX;
+    document.getElementById("esito").insertAdjacentHTML("beforeend",
+      esauriti ? laViaDiScampo() : leMigliorie());
+  }
+  bottone.disabled = false;
+  controllaPronto();
 });
+
+function leMigliorie() {
+  // Non consigli generici: i numeri sono quelli misurati sul banco di prova.
+  return '<div class="passo"><div class="verdetto no">Primo tentativo, riprova</div>' +
+    "<p>Ne resta uno. Le cose che spostano il punteggio davvero, in ordine di quanto valgono:</p>" +
+    "<ul>" +
+    "<li><b>Il documento dritto e vicino</b>, che riempia lo schermo. Sulle nostre prove "
+      + "l&rsquo;inquadratura vale fino a 0,20, pi&ugrave; di qualunque altra cosa.</li>" +
+    "<li><b>Togli gli occhiali</b> e rifai il selfie: valgono fra 0,03 e 0,07.</li>" +
+    "<li><b>Non troppo vicino col telefono</b>: se la faccia riempie tutto, il viso si trova "
+      + "peggio.</li>" +
+    "<li><b>Luce sul viso</b>, non dietro le spalle.</li>" +
+    "</ul></div>";
+}
+
+function laViaDiScampo() {
+  return '<div class="passo"><div class="verdetto no">Due tentativi, ci fermiamo qui</div>' +
+    "<p>Oltre due non migliora, e continuare a riprovare non serve a nessuno. "
+      + "Nel portale vero da qui si scelgono due strade, e la scelta &egrave; tua.</p>" +
+    '<div class="bottoni">' +
+      '<button data-scampo="host">Manda documento e selfie all&rsquo;host</button>' +
+      '<button class="chiaro" data-scampo="persona">No, controllo di persona all&rsquo;arrivo</button>' +
+    "</div>" +
+    '<div class="bottoni" style="margin-top:.6rem">' +
+      '<button class="chiaro" data-scampo="nuovo">Ricomincia con un altro ospite</button>' +
+    "</div></div>";
+}
+
+function scampo(quale) {
+  const dove = document.getElementById("esito");
+  if (quale === "nuovo") {
+    tentativi = 0; esauriti = false;
+    foto.documento = foto.retro = foto.selfie = null;
+    document.querySelectorAll(".anteprima").forEach(i => { i.src = ""; });
+    dove.innerHTML = "";
+    controllaPronto();
+    return;
+  }
+  dove.insertAdjacentHTML("beforeend", '<div class="passo"><p>' + (quale === "host"
+    ? "Nel portale vero documento e selfie partirebbero verso l&rsquo;host, che li guarda e "
+      + "decide lui. Qui il banco di prova si ferma: non manda niente, e le foto sono gi&agrave; "
+      + "state cancellate."
+    : "Allora all&rsquo;arrivo passa qualcuno di persona. Nel portale vero questo si dice "
+      + "prima, insieme al costo se ce n&rsquo;&egrave; uno.") + "</p></div>");
+}
 
 async function chiama(dove, corpo) {
   try {
@@ -488,9 +552,25 @@ function riga(chiave, valore) {
 /* ---- gli ospiti attesi di questa prenotazione, tenuti nel telefono ---- */
 
 function registra(volto, dati) {
-  const nome = (dati && dati.campi && !dati.errore)
-    ? [dati.campi.nome.valore, dati.campi.cognome.valore].filter(Boolean).join(" ")
-    : "ospite " + (attesi.length + 1);
+  // **Non esiste l'ospite senza dati.** Regola di Felice, 19 agosto 2026: se il
+  // documento non si legge i dati si scrivono a mano, e due ospiti con gli stessi
+  // dati non possono esistere. Il ripiego che stava qui, "ospite 1", ha fatto
+  // finire la stessa persona due volte nella lista: una col nome letto e una col
+  // ripiego. Alla porta le due voci hanno agganciato la stessa faccia con lo
+  // stesso punteggio, e due voci per una persona contano due arrivi dove ce n'e'
+  // uno. Per #26 e' il riconoscimento a fare da prova di chi c'era davvero.
+  const campi = (dati && dati.campi && !dati.errore) ? dati.campi : null;
+  const numero = campi && campi.numero_documento && campi.numero_documento.valore;
+  const id = String(numero || "").replace(/\s/g, "").toUpperCase();
+  if (!id) {
+    document.getElementById("esito").insertAdjacentHTML("beforeend", avviso(
+      "Non registro nessuno fra gli attesi: senza i dati del documento questo ospite non ha "
+      + "un&rsquo;identit&agrave;, e un ospite senza identit&agrave; finisce nella lista due "
+      + "volte. Nel portale vero i dati qui si scrivono a mano."));
+    return;
+  }
+  const nome = [campi.nome && campi.nome.valore, campi.cognome && campi.cognome.valore]
+    .filter(Boolean).join(" ") || id;
   // Un vettore per modello, non uno solo. Il selfie sparisce appena finita la
   // risposta: se qui si tenesse solo quello del modello in uso, alla porta
   // l'altro non avrebbe niente contro cui confrontarsi, e non ci sarebbe piu'
@@ -498,8 +578,9 @@ function registra(volto, dati) {
   const vettori = { [volto.modello]: volto.vettore_selfie };
   for (const [n, d] of Object.entries(volto.altri_modelli || {}))
     if (d.vettore_selfie) vettori[n] = d.vettore_selfie;
-  attesi = attesi.filter(a => a.nome !== nome)
-                 .concat([{ nome: nome, vettori: vettori, quando: Date.now() }]);
+  // Il doppione si riconosce sui **dati**, non sull'etichetta.
+  attesi = attesi.filter(a => a.id !== id)
+                 .concat([{ id: id, nome: nome, vettori: vettori, quando: Date.now() }]);
   localStorage.setItem("attesi", JSON.stringify(attesi));
   scriviAttesi();
 }
