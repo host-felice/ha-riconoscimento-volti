@@ -3,6 +3,20 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.15.0
+
+- **L'occhio dell'host e' la seconda porta d'ingresso.** Quando il confronto fra
+  documento e selfie non riesce, l'host puo' guardare le due foto e dire che e'
+  la stessa persona: l'ospite si iscrive comunque, e si iscrive **con il vettore
+  del selfie**, non con quello del documento. Alla porta il confronto e' allora
+  selfie contro telecamera, cioe' due fotografie recenti, che e' la misura che
+  funziona (fra 0,47 e 0,83 nelle prove) invece di quella che era fallita.
+  Serve ai minori, dove il ritratto stampato ha anni e il confronto cade: il
+  fallimento resta confinato al cancello e non tocca la porta.
+- Di ogni atteso si tiene **da quale delle due porte e' entrato**, confronto
+  automatico oppure occhio dell'host. Non e' burocrazia: e' quello che si
+  racconta se qualcuno chiede come e' stata fatta l'identificazione.
+
 ## 0.14.0
 
 Due regole che erano decise e non erano costruite. Vengono da una sessione di

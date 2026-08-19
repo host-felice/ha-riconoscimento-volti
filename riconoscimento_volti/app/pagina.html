@@ -207,6 +207,13 @@ const ORE_DI_VITA = 24;
 const TENTATIVI_MAX = 2;
 let tentativi = 0;
 let esauriti = false;
+// L'ultimo confronto fallito, tenuto da parte. Se l'host guarda documento e
+// selfie e dice "e' lui", l'ospite si iscrive con **il vettore di quel selfie**:
+// il confronto col documento e' solo il cancello, e alla porta si confronta
+// selfie contro telecamera, cioe' due foto recenti, che e' la misura che
+// funziona. Il server restituisce quel vettore anche quando il confronto non
+// passa, quindi non c'e' niente da chiedergli.
+let ultimoConfronto = null;
 let attesi = ripesca();
 
 function ripesca() {
@@ -389,6 +396,7 @@ document.getElementById("vai").addEventListener("click", async () => {
   } else {
     tentativi++;
     esauriti = tentativi >= TENTATIVI_MAX;
+    ultimoConfronto = { volto: volto, dati: dati };
     document.getElementById("esito").insertAdjacentHTML("beforeend",
       esauriti ? laViaDiScampo() : leMigliorie());
   }
@@ -419,6 +427,9 @@ function laViaDiScampo() {
       '<button class="chiaro" data-scampo="persona">No, controllo di persona all&rsquo;arrivo</button>' +
     "</div>" +
     '<div class="bottoni" style="margin-top:.6rem">' +
+      '<button class="chiaro" data-scampo="approvato">L&rsquo;host ha guardato: &egrave; lui, registralo</button>' +
+    "</div>" +
+    '<div class="bottoni" style="margin-top:.6rem">' +
       '<button class="chiaro" data-scampo="nuovo">Ricomincia con un altro ospite</button>' +
     "</div></div>";
 }
@@ -431,6 +442,19 @@ function scampo(quale) {
     document.querySelectorAll(".anteprima").forEach(i => { i.src = ""; });
     dove.innerHTML = "";
     controllaPronto();
+    return;
+  }
+  if (quale === "approvato") {
+    if (!ultimoConfronto || !ultimoConfronto.volto.vettore_selfie) {
+      dove.insertAdjacentHTML("beforeend", avviso("Non ho un selfie misurato da registrare."));
+      return;
+    }
+    registra(ultimoConfronto.volto, ultimoConfronto.dati, "occhio dell'host");
+    dove.insertAdjacentHTML("beforeend", '<div class="passo"><p>Iscritto con il vettore del '
+      + "selfie, non con quello del documento. Alla porta viene confrontato selfie contro "
+      + "telecamera, cio&egrave; due fotografie recenti, e li&rsquo; il confronto funziona. "
+      + "Nel portale vero questo tasto sta dalla parte dell&rsquo;host, dopo che ha visto "
+      + "documento e selfie accostati, e resta scritto che ha deciso lui.</p></div>");
     return;
   }
   dove.insertAdjacentHTML("beforeend", '<div class="passo"><p>' + (quale === "host"
@@ -551,7 +575,7 @@ function riga(chiave, valore) {
 
 /* ---- gli ospiti attesi di questa prenotazione, tenuti nel telefono ---- */
 
-function registra(volto, dati) {
+function registra(volto, dati, porta) {
   // **Non esiste l'ospite senza dati.** Regola di Felice, 19 agosto 2026: se il
   // documento non si legge i dati si scrivono a mano, e due ospiti con gli stessi
   // dati non possono esistere. Il ripiego che stava qui, "ospite 1", ha fatto
@@ -580,7 +604,13 @@ function registra(volto, dati) {
     if (d.vettore_selfie) vettori[n] = d.vettore_selfie;
   // Il doppione si riconosce sui **dati**, non sull'etichetta.
   attesi = attesi.filter(a => a.id !== id)
-                 .concat([{ id: id, nome: nome, vettori: vettori, quando: Date.now() }]);
+                 .concat([{ id: id, nome: nome, vettori: vettori,
+                            // Da quale delle due porte e' entrato: confronto
+                            // automatico o occhio dell'host. Non e' burocrazia,
+                            // e' quello che si racconta se qualcuno chiede come
+                            // e' stata fatta l'identificazione.
+                            porta: porta || "confronto automatico",
+                            quando: Date.now() }]);
   localStorage.setItem("attesi", JSON.stringify(attesi));
   scriviAttesi();
 }
@@ -589,7 +619,9 @@ function scriviAttesi() {
   const dove = document.getElementById("chi_e_atteso");
   document.getElementById("apri_porta").disabled = attesi.length === 0;
   dove.textContent = attesi.length
-    ? "Attesi in questa prenotazione: " + attesi.map(a => a.nome).join(", ")
+    ? "Attesi in questa prenotazione: "
+      + attesi.map(a => a.nome + (a.porta && a.porta !== "confronto automatico"
+                                  ? " (" + a.porta + ")" : "")).join(", ")
       + ". Tieni il telefono in alto, come la telecamera sopra la porta, e mettetevi davanti anche in più di uno. "
       + "La lista vive solo in questo telefono e si cancella da sola dopo un giorno."
     : "Nessun ospite registrato: fai prima il controllo qui sopra, e chi risulta sé stesso finisce fra gli attesi di questa prenotazione.";
