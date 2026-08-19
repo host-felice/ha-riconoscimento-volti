@@ -431,7 +431,6 @@ function schedaVolto(r) {
       Object.entries(r.altri_modelli || {}).map(([n, d]) =>
         riga("l&rsquo;altro modello", n + " " + d.somiglianza.toFixed(3) +
              " su soglia " + d.soglia.toFixed(3) + (d.verificato ? " &#10003;" : " &#10007;"))).join("") +
-      (r.documento_da_schermo ? riga("attenzione", "il documento sembra ripreso da uno schermo") : "") +
       (dettoMinifas(r.minifasnet) ? riga("chi c'era davanti all'obiettivo", dettoMinifas(r.minifasnet)) : "") +
       vicino + riga("tempo", r.millisecondi + " ms") +
     "</table></div>";

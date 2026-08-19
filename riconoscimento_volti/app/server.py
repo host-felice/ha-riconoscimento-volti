@@ -24,11 +24,11 @@ import mrz
 import registro
 import volti
 
-VERSIONE = "0.12.0"
+VERSIONE = "0.12.1"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 PREDEFINITE = {"modello": "buffalo_l", "invio_prove": "", "soglia": 0.4, "soglia_sface": 0.363,
-               "soglia_minifasnet": 0.5, "soglia_schermo": 0.5,
+               "soglia_minifasnet": 0.5,
                "volto_minimo_px": 80, "parola": "", "log_level": "info"}
 LIMITE_CORPO = 32 * 1024 * 1024   # una foto di telefono sta larga in 32 MB
 
@@ -355,12 +355,22 @@ def _chiesto_minifasnet():
 def _minifasnet(img, riquadro, documento=False):
     """Il giudizio di MiniFASNet, gia' confrontato con la sua soglia.
 
-    **Su un documento la domanda e' un'altra.** Chiedere se davanti c'era una
-    persona non ha senso: sul documento la faccia e' stampata, e stampata deve
-    essere. Ma la terza probabilita', quella dello schermo, resta buona e
-    risponde a una domanda vera: l'ospite ha fotografato il documento, oppure
-    la fotografia di un documento su un telefono? Quindi sul documento si
-    guarda solo quella.
+    **Sul documento i numeri si scrivono ma non si giudica niente**, e c'e' un
+    motivo che e' costato un falso allarme il 19 agosto 2026. Si era provato a
+    usare la terza probabilita', quella dello schermo, per rispondere a una
+    domanda vera: l'ospite ha fotografato il documento oppure la fotografia di
+    un documento su un telefono? Su un passaporto vero, tenuto in mano, ha
+    risposto 0,91 e ha gridato al lupo.
+
+    **Il modello ha ragione, e' la domanda a essere sbagliata.** Lui sa dire se
+    una faccia e' una persona o la fotografia di una persona. Sul documento la
+    faccia **e'** la fotografia di una persona, stampata, plastificata e lucida:
+    qualunque numero dia parla della stampa, non di dove quella stampa stava.
+    Distinguere la carta da uno schermo vuole altro (le righe del video, la
+    trama della carta, i riflessi dell'ologramma) ed e' un lavoro suo.
+
+    I tre numeri si scrivono lo stesso nel quaderno: se un giorno qualcuno
+    fotografa davvero un documento da uno schermo, si guarda se erano diversi.
 
     Se il modello non c'e' (add-on aggiornato ma immagine vecchia) non e' un
     errore: si risponde che non e' stata misurata, e chi chiama lo vede.
@@ -369,10 +379,7 @@ def _minifasnet(img, riquadro, documento=False):
         return {"misurata": False, "motivo": "modello non installato"}
     esito = minifasnet.misura(img, riquadro)
     esito["misurata"] = True
-    if documento:
-        esito["soglia_schermo"] = float(OPZIONI["soglia_schermo"])
-        esito["sospetto_schermo"] = esito["schermo"] >= esito["soglia_schermo"]
-    else:
+    if not documento:
         esito["soglia"] = _soglia_minifasnet()
         esito["persona_vera"] = esito["punteggio"] >= esito["soglia"]
     return esito
@@ -522,7 +529,6 @@ def salute():
                     for n, d in volti.CATALOGO.items()},
         "soglia": float(OPZIONI["soglia"]),
         "soglia_minifasnet": float(OPZIONI["soglia_minifasnet"]),
-        "soglia_schermo": float(OPZIONI["soglia_schermo"]),
         "minifasnet": minifasnet.disponibile(),
         "invio_prove": bool(OPZIONI["invio_prove"]),
         "invio": invio.stato(),
@@ -563,11 +569,8 @@ def confronta():
     soglia = _soglia(modello)
     punteggio = volti.somiglianza(documento["vettore"], selfie["vettore"])
     altri = _con_l_altro_modello(documento, selfie, modello) if _anche_l_altro() else {}
-    schermo = documento.get("minifasnet") or {}
-    log.info("confronta (%s): %.4f contro soglia %.3f%s%s%s",
+    log.info("confronta (%s): %.4f contro soglia %.3f%s%s",
              modello, punteggio, soglia, _detto(selfie.get("minifasnet")),
-             ", ATTENZIONE il documento sembra ripreso da uno schermo (%.2f)"
-             % schermo["schermo"] if schermo.get("sospetto_schermo") else "",
              "".join(", %s %.4f" % (n, d["somiglianza"]) for n, d in altri.items()))
     risposta = {
         "modello": modello,
@@ -577,7 +580,6 @@ def confronta():
         "documento": _senza_vettore(documento),
         "selfie": _senza_vettore(selfie),
         "minifasnet": selfie.get("minifasnet"),
-        "documento_da_schermo": schermo.get("sospetto_schermo"),
         "altri_modelli": altri,
         "millisecondi": _millisecondi(partenza),
     }

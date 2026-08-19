@@ -3,6 +3,16 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.12.1
+
+- **Tolto l'allarme "il documento sembra ripreso da uno schermo".** Su un
+  passaporto vero, tenuto in mano, era scattato a 0,91. Il modello ha ragione e
+  la domanda era sbagliata: lui sa dire se una faccia e' una persona o la
+  fotografia di una persona, e sul documento la faccia **e'** la fotografia di
+  una persona. Qualunque numero dia parla della stampa, non di dove quella
+  stampa stava. I tre numeri si continuano a scrivere nel quaderno, ma non
+  fanno piu' scattare niente.
+
 ## 0.12.0
 
 - **Il "No, grazie" adesso ferma tutto.** Prima fermava solo l'invio, e il
