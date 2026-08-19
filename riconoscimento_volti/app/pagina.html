@@ -57,6 +57,10 @@
   }
   img.anteprima { display: none; width: 100%; border-radius: 10px; margin-top: .8rem; }
   #esito { margin-top: 1.2rem; }
+  .consenso { display: flex; gap: .7rem; align-items: flex-start; margin: 1.2rem 0 .6rem;
+    padding: .9rem; border: 1px solid #e0dbd2; border-radius: 12px; background: #fff;
+    font-size: .93rem; line-height: 1.45; cursor: pointer; }
+  .consenso input { width: 1.15rem; height: 1.15rem; margin-top: .15rem; flex: none; }
   .verdetto { font-size: 1.35rem; font-weight: 700; margin-bottom: .3rem; }
   .si { color: #1a7f37; }
   .no { color: #b3261e; }
@@ -152,6 +156,15 @@
   </div>
   <img class="anteprima" id="ant_selfie" alt="">
 </div>
+
+<label class="consenso" id="consenso">
+  <input type="checkbox" id="manda_prova">
+  <span><b>Posso tenere il risultato di questa prova?</b>
+  Partono solo numeri: quanto ha fatto il confronto, quanto era grande il viso
+  nella foto e quanti millisecondi ci &egrave; voluto. La tua faccia no, il tuo
+  nome no, il documento no. Le foto vengono cancellate appena finito il
+  confronto, che tu dica di s&igrave; o di no.</span>
+</label>
 
 <button id="vai" disabled>Controlla</button>
 <div id="esito"></div>
@@ -325,6 +338,7 @@ document.getElementById("vai").addEventListener("click", async () => {
   // Qui si sta misurando, quindi si chiedono i punteggi di tutti e due i
   // modelli sulla stessa faccia: e' l'unico confronto che vuol dire qualcosa.
   perVolto.append("anche_l_altro", "si");
+  if (document.getElementById("manda_prova").checked) perVolto.append("consenso_invio", "si");
   const [volto, dati] = await Promise.all([chiama("confronta", perVolto), chiama("mrz", perMrz)]);
   mostra(schedaVolto(volto) + schedaMrz(dati));
   if (volto.verificato && volto.vettore_selfie) registra(volto.vettore_selfie, dati);
@@ -382,6 +396,7 @@ function schedaVolto(r) {
       riga("faccia sul documento", r.documento.larghezza_px + " px, fiducia " + r.documento.fiducia) +
       riga("faccia nel selfie", r.selfie.larghezza_px + " px, fiducia " + r.selfie.fiducia) +
       riga("modello", r.modello + " (soglia " + r.soglia.toFixed(3) + ")") +
+      (r.prova_mandata ? riga("grazie", "il risultato e&rsquo; partito, sono solo numeri") : "") +
       Object.entries(r.altri_modelli || {}).map(([n, d]) =>
         riga("l&rsquo;altro modello", n + " " + d.somiglianza.toFixed(3) +
              " su soglia " + d.soglia.toFixed(3) + (d.verificato ? " &#10003;" : " &#10007;"))).join("") +

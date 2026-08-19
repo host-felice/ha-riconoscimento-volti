@@ -43,14 +43,30 @@ def _ripulisci(dato):
     return dato
 
 
+def ripulita(chiamata, dati):
+    """La riga come sara' scritta: con l'ora, senza niente che riporti a qualcuno.
+
+    Sta qui e non dentro scrivi() perche' la stessa riga serve due volte: una
+    per il quaderno di casa e una per l'invio a Home Assistant. Ripulirla in un
+    posto solo vuol dire che non ci sono due liste di campi vietati da tenere
+    d'accordo, e quindi non c'e' il giorno in cui una delle due si dimentica un
+    campo nuovo.
+    """
+    riga = {"quando": time.strftime("%Y-%m-%dT%H:%M:%S"), "chiamata": chiamata}
+    riga.update(_ripulisci(dati))
+    return riga
+
+
 def scrivi(chiamata, dati):
+    return scrivi_riga(ripulita(chiamata, dati))
+
+
+def scrivi_riga(riga):
     """Una riga per prova. Se non si puo' scrivere, la richiesta non ne soffre.
 
     Il registro e' una comodita', non il lavoro: un disco pieno o una cartella
     che non c'e' non devono lasciare un ospite fuori dalla porta.
     """
-    riga = {"quando": time.strftime("%Y-%m-%dT%H:%M:%S"), "chiamata": chiamata}
-    riga.update(_ripulisci(dati))
     try:
         with _una_alla_volta:
             if not os.path.isdir(CARTELLA):

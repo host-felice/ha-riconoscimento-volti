@@ -18,15 +18,16 @@ from waitress import serve
 
 import cv2
 
+import invio
 import minifasnet
 import mrz
 import registro
 import volti
 
-VERSIONE = "0.9.0"
+VERSIONE = "0.10.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
-PREDEFINITE = {"modello": "buffalo_l", "soglia": 0.4, "soglia_sface": 0.363,
+PREDEFINITE = {"modello": "buffalo_l", "invio_prove": "", "soglia": 0.4, "soglia_sface": 0.363,
                "soglia_minifasnet": 0.5, "soglia_schermo": 0.5,
                "volto_minimo_px": 80, "parola": "", "log_level": "info"}
 LIMITE_CORPO = 32 * 1024 * 1024   # una foto di telefono sta larga in 32 MB
@@ -312,6 +313,18 @@ def _soglia_minifasnet():
         raise Errore("soglia_minifasnet non e' un numero: %r" % chiesta)
 
 
+def _consenso_invio():
+    """Se chi ha fatto la prova ha detto di si' all'invio del risultato.
+
+    Deve essere un si' detto, non un silenzio: senza il campo non si manda
+    niente. E' la stessa regola del consenso dell'ospite, in piccolo.
+    """
+    corpo = _corpo_json()
+    valore = (corpo.get("consenso_invio") if corpo is not None
+              else request.form.get("consenso_invio"))
+    return str(valore).lower() in ("si", "1", "true", "yes", "on")
+
+
 def _chiesto_minifasnet():
     """Se la richiesta vuole anche il controllo su chi c'era davanti all'obiettivo."""
     corpo = _corpo_json()
@@ -427,7 +440,8 @@ def prove():
         testo = "\n".join(json.dumps(r, ensure_ascii=False) for r in righe)
         return Response(testo, mimetype="application/x-ndjson")
     quante = None if request.args.get("tutte") else 50
-    return jsonify({"somme": registro.somme(), "ultime": registro.leggi(quante)})
+    return jsonify({"somme": registro.somme(), "invio": invio.stato(),
+                    "ultime": registro.leggi(quante)})
 
 
 @app.route("/salute", methods=["GET"])
@@ -447,6 +461,8 @@ def salute():
         "soglia_minifasnet": float(OPZIONI["soglia_minifasnet"]),
         "soglia_schermo": float(OPZIONI["soglia_schermo"]),
         "minifasnet": minifasnet.disponibile(),
+        "invio_prove": bool(OPZIONI["invio_prove"]),
+        "invio": invio.stato(),
         "volto_minimo_px": int(OPZIONI["volto_minimo_px"]),
     })
 
@@ -502,7 +518,10 @@ def confronta():
         "altri_modelli": altri,
         "millisecondi": _millisecondi(partenza),
     }
-    registro.scrivi("confronta", risposta)
+    pulita = registro.ripulita("confronta", risposta)
+    registro.scrivi_riga(pulita)
+    risposta["prova_mandata"] = (
+        invio.manda(OPZIONI["invio_prove"], pulita) if _consenso_invio() else False)
     risposta["vettore_selfie"] = selfie["vettore"]
     return jsonify(risposta)
 
