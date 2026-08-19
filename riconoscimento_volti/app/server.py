@@ -20,13 +20,15 @@ import cv2
 
 import minifasnet
 import mrz
+import registro
 import volti
 
-VERSIONE = "0.8.0"
+VERSIONE = "0.9.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
-PREDEFINITE = {"soglia": 0.4, "soglia_minifasnet": 0.5, "volto_minimo_px": 80,
-               "parola": "", "log_level": "info"}
+PREDEFINITE = {"modello": "buffalo_l", "soglia": 0.4, "soglia_sface": 0.363,
+               "soglia_minifasnet": 0.5, "soglia_schermo": 0.5,
+               "volto_minimo_px": 80, "parola": "", "log_level": "info"}
 LIMITE_CORPO = 32 * 1024 * 1024   # una foto di telefono sta larga in 32 MB
 
 
@@ -75,8 +77,8 @@ def _guardiano():
         time.sleep(60)
         try:
             chiusi = []
-            if volti.chiudi_se_inattiva():
-                chiusi.append("volti")
+            chiusi.extend(volti.chiudi_se_inattiva())
+            registro.accorcia()
             if minifasnet.chiudi_se_inattiva():
                 chiusi.append("minifasnet")
             if chiusi:
@@ -147,6 +149,12 @@ def _errore_nostro(e):
 @app.errorhandler(volti.NessunVolto)
 def _errore_senza_volto(e):
     return jsonify({"errore": str(e)}), 422
+
+
+@app.errorhandler(volti.ModelliDiversi)
+def _errore_modelli_diversi(e):
+    return jsonify({"errore": str(e), "come_si_rimedia":
+                    "i vettori degli attesi vanno rifatti con il modello in uso"}), 400
 
 
 @app.errorhandler(mrz.NessunaMRZ)
@@ -235,8 +243,40 @@ def _attesi():
     return attesi
 
 
-def _soglia():
+def _modello():
+    """Quale dei due modelli usare per questa richiesta.
+
+    Sta nelle opzioni e si puo' scavalcare a ogni richiesta, perche' e' cosi'
+    che si misurano tutti e due sulle stesse facce mentre il progetto va avanti.
+    """
+    corpo = _corpo_json()
+    chiesto = corpo.get("modello") if corpo is not None else request.form.get("modello")
+    nome = chiesto or OPZIONI["modello"]
+    if nome not in volti.CATALOGO:
+        raise Errore("modello sconosciuto: %r (ci sono %s)"
+                     % (nome, ", ".join(volti.CATALOGO)))
+    if not volti.disponibile(nome):
+        raise Errore("il modello %r non e' installato su questa macchina" % nome)
+    return nome
+
+
+def _anche_l_altro():
+    """Se la richiesta vuole il punteggio di tutti e due i modelli.
+
+    Serve al confronto fra i due, e costa una seconda misurazione sulla stessa
+    faccia: si chiede quando si sta misurando, non tutti i giorni.
+    """
+    corpo = _corpo_json()
+    valore = (corpo.get("anche_l_altro") if corpo is not None
+              else request.form.get("anche_l_altro"))
+    return str(valore).lower() not in ("none", "", "0", "no", "false")
+
+
+def _soglia(modello=None):
     """Quella scritta nelle opzioni, salvo che la richiesta ne chieda un'altra.
+
+    Ogni modello ha la sua e non sono confrontabili fra loro: 0,40 per
+    buffalo_l, 0,363 per SFace, che e' quella consigliata da OpenCV.
 
     La porta puo' volerla piu' alta del confronto documento-selfie: li' si
     confrontano due immagini molto diverse, qui due fotografie dal vero.
@@ -244,6 +284,8 @@ def _soglia():
     corpo = _corpo_json()
     chiesta = corpo.get("soglia") if corpo is not None else request.form.get("soglia")
     if chiesta is None:
+        if modello == "sface":
+            return float(OPZIONI["soglia_sface"])
         return float(OPZIONI["soglia"])
     try:
         return float(chiesta)
@@ -278,34 +320,69 @@ def _chiesto_minifasnet():
     return str(valore).lower() not in ("none", "", "0", "no", "false")
 
 
-def _minifasnet(img, riquadro):
+def _minifasnet(img, riquadro, documento=False):
     """Il giudizio di MiniFASNet, gia' confrontato con la sua soglia.
+
+    **Su un documento la domanda e' un'altra.** Chiedere se davanti c'era una
+    persona non ha senso: sul documento la faccia e' stampata, e stampata deve
+    essere. Ma la terza probabilita', quella dello schermo, resta buona e
+    risponde a una domanda vera: l'ospite ha fotografato il documento, oppure
+    la fotografia di un documento su un telefono? Quindi sul documento si
+    guarda solo quella.
 
     Se il modello non c'e' (add-on aggiornato ma immagine vecchia) non e' un
     errore: si risponde che non e' stata misurata, e chi chiama lo vede.
     """
     if not minifasnet.disponibile():
         return {"misurata": False, "motivo": "modello non installato"}
-    soglia = _soglia_minifasnet()
     esito = minifasnet.misura(img, riquadro)
     esito["misurata"] = True
-    esito["soglia"] = soglia
-    esito["persona_vera"] = esito["punteggio"] >= soglia
+    if documento:
+        esito["soglia_schermo"] = float(OPZIONI["soglia_schermo"])
+        esito["sospetto_schermo"] = esito["schermo"] >= esito["soglia_schermo"]
+    else:
+        esito["soglia"] = _soglia_minifasnet()
+        esito["persona_vera"] = esito["punteggio"] >= esito["soglia"]
     return esito
 
 
-def _analizza(dati, con_minifasnet=False):
+def _analizza(dati, modello, con_minifasnet=False, documento=False):
     """Il volto piu' grande, e se serve anche chi c'era davanti all'obiettivo.
 
-    L'immagine si apre una volta sola e si passa a tutti e due i modelli: le
-    foto dei telefoni sono grosse e aprirle due volte costa senza comprare
-    niente.
+    L'immagine si apre una volta sola e si passa a tutti i modelli: le foto dei
+    telefoni sono grosse e aprirle due volte costa senza comprare niente.
     """
     img = volti.leggi(dati)
-    esito = volti.volto_principale(img, int(OPZIONI["volto_minimo_px"]))
+    esito = volti.volto_principale(img, int(OPZIONI["volto_minimo_px"]), modello)
     if con_minifasnet:
-        esito["minifasnet"] = _minifasnet(img, esito["riquadro"])
+        esito["minifasnet"] = _minifasnet(img, esito["riquadro"], documento)
+    esito["_img"] = img
     return esito
+
+
+def _con_l_altro_modello(documento, selfie, modello):
+    """Lo stesso confronto rifatto con l'altro modello, sulle stesse due facce.
+
+    Il rilevamento si ripete, ed e' voluto: costa poche decine di millisecondi e
+    tiene questa funzione fuori dai piedi del percorso normale. Serve a mettere
+    i due modelli uno accanto all'altro sulle stesse foto, che e' l'unico modo
+    di deciderli invece di discuterne.
+    """
+    fuori = {}
+    for altro in volti.CATALOGO:
+        if altro == modello or not volti.disponibile(altro):
+            continue
+        px = int(OPZIONI["volto_minimo_px"])
+        try:
+            d = volti.volto_principale(documento["_img"], px, altro)
+            s = volti.volto_principale(selfie["_img"], px, altro)
+        except volti.NessunVolto:
+            continue
+        soglia = float(OPZIONI["soglia_sface"]) if altro == "sface" else float(OPZIONI["soglia"])
+        punteggio = volti.somiglianza(d["vettore"], s["vettore"])
+        fuori[altro] = {"somiglianza": punteggio, "soglia": soglia,
+                        "verificato": punteggio >= soglia}
+    return fuori
 
 
 def _millisecondi(partenza):
@@ -328,7 +405,7 @@ def _detto(giudizio):
 
 
 def _senza_vettore(esito):
-    return {c: v for c, v in esito.items() if c != "vettore"}
+    return {c: v for c, v in esito.items() if c not in ("vettore", "_img")}
 
 
 @app.route("/", methods=["GET"])
@@ -337,14 +414,38 @@ def pagina():
     return send_from_directory(QUI, "pagina.html")
 
 
+@app.route("/prove", methods=["GET"])
+def prove():
+    """Il quaderno delle prove: le somme, e le ultime righe.
+
+    Con ?tutte=si escono tutte, con ?jsonl=si esce il file com'e', da salvare.
+    I vettori non ci sono mai: qui restano solo numeri che non riportano a
+    nessuno.
+    """
+    if request.args.get("jsonl"):
+        righe = registro.leggi()
+        testo = "\n".join(json.dumps(r, ensure_ascii=False) for r in righe)
+        return Response(testo, mimetype="application/x-ndjson")
+    quante = None if request.args.get("tutte") else 50
+    return jsonify({"somme": registro.somme(), "ultime": registro.leggi(quante)})
+
+
 @app.route("/salute", methods=["GET"])
 def salute():
     return jsonify({
         "stato": "vivo",
         "versione": VERSIONE,
         "memoria_mb": _memoria_mb(),
+        "modello": OPZIONI["modello"],
+        "modelli": {n: {"installato": volti.disponibile(n),
+                        "soglia": float(OPZIONI["soglia_sface"] if n == "sface"
+                                        else OPZIONI["soglia"]),
+                        "memoria_mb": d["memoria_mb"],
+                        "millisecondi": d["millisecondi"]}
+                    for n, d in volti.CATALOGO.items()},
         "soglia": float(OPZIONI["soglia"]),
         "soglia_minifasnet": float(OPZIONI["soglia_minifasnet"]),
+        "soglia_schermo": float(OPZIONI["soglia_schermo"]),
         "minifasnet": minifasnet.disponibile(),
         "volto_minimo_px": int(OPZIONI["volto_minimo_px"]),
     })
@@ -359,10 +460,12 @@ def volto():
     faccia stampata e' quello che ci si aspetta di trovare.
     """
     partenza = time.time()
-    esito = _analizza(_immagine("immagine"), _chiesto_minifasnet())
+    esito = _analizza(_immagine("immagine"), _modello(), _chiesto_minifasnet())
+    esito.pop("_img", None)
     esito["millisecondi"] = _millisecondi(partenza)
-    log.info("volto: %d px, fiducia %.3f, altri %s%s",
-             esito["larghezza_px"], esito["fiducia"], esito["altri_volti_px"],
+    log.info("volto (%s): %d px, fiducia %.3f, storta %.0f gradi, altri %s%s",
+             esito["modello"], esito["larghezza_px"], esito["fiducia"],
+             esito["inclinazione_gradi"], esito["altri_volti_px"],
              _detto(esito.get("minifasnet")))
     return jsonify(esito)
 
@@ -375,22 +478,33 @@ def confronta():
     riconoscere l'ospite alla porta. Della foto del documento non resta niente.
     """
     partenza = time.time()
-    documento = _analizza(_immagine("documento"))
-    selfie = _analizza(_immagine("selfie"), True)
-    soglia = _soglia()
+    modello = _modello()
+    documento = _analizza(_immagine("documento"), modello, True, documento=True)
+    selfie = _analizza(_immagine("selfie"), modello, True)
+    soglia = _soglia(modello)
     punteggio = volti.somiglianza(documento["vettore"], selfie["vettore"])
-    log.info("confronta: %.4f contro soglia %.2f%s", punteggio, soglia,
-             _detto(selfie.get("minifasnet")))
-    return jsonify({
+    altri = _con_l_altro_modello(documento, selfie, modello) if _anche_l_altro() else {}
+    schermo = documento.get("minifasnet") or {}
+    log.info("confronta (%s): %.4f contro soglia %.3f%s%s%s",
+             modello, punteggio, soglia, _detto(selfie.get("minifasnet")),
+             ", ATTENZIONE il documento sembra ripreso da uno schermo (%.2f)"
+             % schermo["schermo"] if schermo.get("sospetto_schermo") else "",
+             "".join(", %s %.4f" % (n, d["somiglianza"]) for n, d in altri.items()))
+    risposta = {
+        "modello": modello,
         "somiglianza": punteggio,
         "soglia": soglia,
         "verificato": punteggio >= soglia,
         "documento": _senza_vettore(documento),
         "selfie": _senza_vettore(selfie),
         "minifasnet": selfie.get("minifasnet"),
-        "vettore_selfie": selfie["vettore"],
+        "documento_da_schermo": schermo.get("sospetto_schermo"),
+        "altri_modelli": altri,
         "millisecondi": _millisecondi(partenza),
-    })
+    }
+    registro.scrivi("confronta", risposta)
+    risposta["vettore_selfie"] = selfie["vettore"]
+    return jsonify(risposta)
 
 
 @app.route("/riconosci", methods=["POST"])
@@ -407,14 +521,15 @@ def riconosci():
     """
     partenza = time.time()
     attesi = _attesi()
-    soglia = _soglia()
+    modello = _modello()
+    soglia = _soglia(modello)
 
     scatti = _immagini("immagine")
     facce = []
     for dati in scatti:
         img = volti.leggi(dati)
         try:
-            trovate = volti.tutti_i_volti(img, int(OPZIONI["volto_minimo_px"]))
+            trovate = volti.tutti_i_volti(img, int(OPZIONI["volto_minimo_px"]), modello)
         except volti.NessunVolto:
             continue
         for faccia in trovate:
@@ -462,7 +577,8 @@ def riconosci():
              len(facce), len(scatti), [r["nome"] for r in riconosciuti],
              len(fuori), fuori,
              (", ma MiniFASNet respinge %s" % respinti) if respinti else "")
-    return jsonify({
+    risposta = {
+        "modello": modello,
         "riconosciuti": riconosciuti,
         "sconosciuti": sconosciuti,
         "tutti": punteggi,
@@ -470,7 +586,12 @@ def riconosci():
         "scatti": len(scatti),
         "soglia": soglia,
         "millisecondi": _millisecondi(partenza),
-    })
+    }
+    # Nel registro i nomi non entrano (li toglie lui), restano i punteggi: sono
+    # quelli a dire se la soglia alla porta e' quella giusta.
+    registro.scrivi("riconosci", dict(risposta, punteggi=[p["somiglianza"] for p in punteggi],
+                                      quanti_riconosciuti=len(riconosciuti)))
+    return jsonify(risposta)
 
 
 @app.after_request

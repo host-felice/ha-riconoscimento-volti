@@ -322,6 +322,9 @@ document.getElementById("vai").addEventListener("click", async () => {
   const perMrz = new FormData();
   perMrz.append("immagine", tipo === "carta" ? foto.retro : foto.documento, "mrz.jpg");
 
+  // Qui si sta misurando, quindi si chiedono i punteggi di tutti e due i
+  // modelli sulla stessa faccia: e' l'unico confronto che vuol dire qualcosa.
+  perVolto.append("anche_l_altro", "si");
   const [volto, dati] = await Promise.all([chiama("confronta", perVolto), chiama("mrz", perMrz)]);
   mostra(schedaVolto(volto) + schedaMrz(dati));
   if (volto.verificato && volto.vettore_selfie) registra(volto.vettore_selfie, dati);
@@ -378,6 +381,11 @@ function schedaVolto(r) {
     '<table class="dettagli">' +
       riga("faccia sul documento", r.documento.larghezza_px + " px, fiducia " + r.documento.fiducia) +
       riga("faccia nel selfie", r.selfie.larghezza_px + " px, fiducia " + r.selfie.fiducia) +
+      riga("modello", r.modello + " (soglia " + r.soglia.toFixed(3) + ")") +
+      Object.entries(r.altri_modelli || {}).map(([n, d]) =>
+        riga("l&rsquo;altro modello", n + " " + d.somiglianza.toFixed(3) +
+             " su soglia " + d.soglia.toFixed(3) + (d.verificato ? " &#10003;" : " &#10007;"))).join("") +
+      (r.documento_da_schermo ? riga("attenzione", "il documento sembra ripreso da uno schermo") : "") +
       (dettoMinifas(r.minifasnet) ? riga("chi c'era davanti all'obiettivo", dettoMinifas(r.minifasnet)) : "") +
       vicino + riga("tempo", r.millisecondi + " ms") +
     "</table></div>";

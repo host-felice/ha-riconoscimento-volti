@@ -27,6 +27,25 @@ MINIFASNET = os.path.join(MODELLI, "minifasnet_v2.onnx")
 MARGINE = 2.7
 LATO = 80
 
+# **Il foglio di istruzioni del modello e' sbagliato, e ce ne siamo accorti
+# misurando.** Chi lo ha convertito in ONNX scrive che vuole l'immagine con i
+# valori portati fra zero e uno, e che le tre uscite sono nell'ordine persona,
+# stampa, schermo. Sono sbagliate tutte e due:
+#
+# - Con i valori fra zero e uno il modello **risponde la stessa cosa a
+#   qualunque foto** (0,000 / 0,005 / 0,994 su otto scatti diversi, selfie e
+#   documenti). Non e' cauto, e' morto.
+# - Con i valori come sono, da zero a 255, si sveglia: i tre selfie veri del
+#   banco di prova danno 0,84 / 0,99 / 0,99 sulla seconda uscita, e i documenti
+#   si sparpagliano. Quindi **la persona vera e' la seconda**, come nel progetto
+#   originale, dove il codice scrive "e' una faccia vera" quando vince l'indice
+#   uno.
+#
+# Verificato il 19 agosto 2026 sulle foto di #6. Se un giorno si cambia il file
+# del modello, questa e' la prima cosa da rifare, e si rifa' cosi': se tutte le
+# foto danno lo stesso numero, la preparazione e' sbagliata.
+STAMPA, PERSONA, SCHERMO = 0, 1, 2
+
 _rete = None
 _ultimo_uso = 0.0
 secondi_ultima_apertura = None
@@ -116,13 +135,13 @@ def misura(img, riquadro):
     ritaglio = _ritaglio(img, riquadro)
     if ritaglio.size == 0:
         raise ValueError("il ritaglio per MiniFASNet e' vuoto")
-    blob = cv2.dnn.blobFromImage(ritaglio, 1.0 / 255.0, (LATO, LATO), swapRB=False)
+    blob = cv2.dnn.blobFromImage(ritaglio, 1.0, (LATO, LATO), swapRB=False)
     with _una_alla_volta:
         rete = _rete_pronta()
         rete.setInput(blob)
         p = _probabilita(rete.forward())
     return {
-        "punteggio": round(float(p[0]), 4),
-        "stampa": round(float(p[1]), 4),
-        "schermo": round(float(p[2]), 4),
+        "punteggio": round(float(p[PERSONA]), 4),
+        "stampa": round(float(p[STAMPA]), 4),
+        "schermo": round(float(p[SCHERMO]), 4),
     }
