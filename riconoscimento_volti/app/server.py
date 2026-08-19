@@ -24,7 +24,7 @@ import mrz
 import registro
 import volti
 
-VERSIONE = "0.16.0"
+VERSIONE = "0.16.1"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 PREDEFINITE = {"modello": "buffalo_l", "invio_prove": "", "soglia": 0.4, "soglia_sface": 0.363,
@@ -534,8 +534,24 @@ def _senza_vettore(esito):
 
 @app.route("/", methods=["GET"])
 def pagina():
-    """Il banco di prova da telefono: due foto, un punteggio."""
-    return send_from_directory(QUI, "pagina.html")
+    """Il banco di prova da telefono: due foto, un punteggio.
+
+    **La pagina non si mette in cache, e non e' un dettaglio.** Il 19 agosto 2026
+    due prove alla porta sono girate con la pagina vecchia tenuta dal telefono:
+    l'add-on era aggiornato, il telefono no, e quelle prove hanno saltato in
+    silenzio il secondo modello, il limite dei due tentativi e il controllo sulla
+    scadenza. Si e' visto solo perche' nel registro mancava la coda con il
+    punteggio dell'altro modello.
+
+    Vale doppio in produzione: la pagina **e' il flusso**, e le regole che il
+    flusso deve rispettare vivono dentro di lei. Una pagina di ieri e' un flusso
+    di ieri, e nessuno se ne accorge.
+    """
+    risposta = send_from_directory(QUI, "pagina.html")
+    risposta.headers["Cache-Control"] = "no-store, must-revalidate"
+    risposta.headers["Pragma"] = "no-cache"
+    risposta.headers["Expires"] = "0"
+    return risposta
 
 
 @app.route("/prove", methods=["GET"])

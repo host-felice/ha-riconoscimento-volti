@@ -3,6 +3,18 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.16.1
+
+- **La pagina non si mette piu' in cache**, e serviva. Il 19 agosto 2026 due
+  prove alla porta sono girate con la pagina vecchia tenuta in memoria dal
+  telefono: l'add-on era aggiornato, il telefono no. Quelle due prove hanno
+  saltato **in silenzio** il secondo modello, il limite dei due tentativi e il
+  controllo sulla scadenza del documento, e ce ne siamo accorti solo perche' nel
+  registro mancava la coda con il punteggio dell'altro modello.
+- Conta oltre il banco di prova, e conta di piu': **la pagina e' il flusso**, e
+  le regole che il flusso deve rispettare vivono dentro di lei. Una pagina di
+  ieri e' un flusso di ieri, e nessuno se ne accorge.
+
 ## 0.16.0
 
 - **Il documento scaduto viene fermato, e nessuno lo controllava.** La lettura

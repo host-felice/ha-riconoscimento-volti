@@ -221,5 +221,11 @@ for nome in ("FELICE", "PADRE"):
 controlla("ma chi si legge, per numero", "#1" in scritto,
           [r for r in orecchio.righe if "riconosci" in r][0][:120])
 
+print("\n10. la pagina non si mette in cache: una pagina di ieri e' un flusso di ieri")
+r = cliente.get("/")
+controlla("la pagina si serve", r.status_code == 200, str(r.status_code))
+cache = r.headers.get("Cache-Control", "")
+controlla("e dice di non tenerla da parte", "no-store" in cache, cache or "(niente)")
+
 print("\n" + ("TUTTO A POSTO" if not fallite else "FALLITE: " + ", ".join(fallite)))
 sys.exit(1 if fallite else 0)
