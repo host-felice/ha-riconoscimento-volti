@@ -19,6 +19,11 @@ PESI = (7, 3, 1)
 
 # Due misure: si prova alla prima, e solo se qualcosa non torna si rifa' con
 # piu' pixel. La seconda costa il doppio del tempo, quindi non e' di serie.
+# Da qui in su una lettura non si corregge, si rifa'. `tutto_insieme` non conta:
+# e' la cifra che copre tutte le altre e cade insieme alla prima che sbaglia,
+# quindi contarla vorrebbe dire contare due volte lo stesso errore.
+TROPPI_SBAGLI = 2
+
 LATO_PRIMO = 2000
 LATO_SECONDO = 3500
 
@@ -314,8 +319,30 @@ def analizza(dati_binari):
         if max(img.shape[:2]) <= lato:
             break
     if migliore is not None:
-        return migliore
+        # **Una lettura con troppe cifre di controllo sbagliate non e' una
+        # lettura da correggere: e' una lettura da buttare.** Una sola cifra che
+        # non torna e' un carattere preso per un altro, e si aggiusta a mano.
+        # Tre no: vuol dire che la fotografia non era leggibile, e i valori che
+        # ne escono sono spazzatura che somiglia a dei dati. Vista il 20 agosto
+        # 2026 su una carta d'identita': numero documento `PUBBLCATA`, scadenza
+        # `R00LLN`, nome vuoto. Mostrarli con l'invito a correggerli e' peggio
+        # che dire che non si e' letto niente, perche' chi guarda non sa da dove
+        # cominciare. La stessa foto rifatta ha letto tutto senza un errore.
+        quanti = quanti_sbagli(migliore["da_correggere"])
+        if quanti < TROPPI_SBAGLI:
+            return migliore
+        raise NessunaMRZ("la banda ottica si e' letta male, %d campi non tornano" % quanti)
     raise guaio or NessunaMRZ("nessuna zona leggibile a macchina trovata nella foto")
+
+
+def quanti_sbagli(da_correggere):
+    """Quante cifre di controllo non tornano davvero.
+
+    `tutto_insieme` non si conta: e' la cifra che copre tutte le altre e cade
+    insieme alla prima che sbaglia, quindi contarla vorrebbe dire contare due
+    volte lo stesso errore.
+    """
+    return len([c for c in (da_correggere or []) if c != "tutto_insieme"])
 
 
 def _in_disparte(scrivi_qui, dati_binari, anche_ottico, anche_banda):

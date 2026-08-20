@@ -3,6 +3,30 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.31.0
+
+- **Una lettura con troppe cifre di controllo sbagliate si rifa', non si
+  corregge.** Il caso, visto su una carta d'identita': la banda ottica era stata
+  trovata e interpretata, ma non tornavano numero documento, data di nascita e
+  scadenza. Quello che ne usciva erano `PUBBLCATA` come numero del documento e
+  `R00LLN` come scadenza, cioe' **spazzatura che somiglia a dei dati**, e veniva
+  presentata con l'invito a correggerla. Chi guarda non sa da dove cominciare, e
+  correggere sei campi a mano e' peggio che rifare una fotografia.
+
+  Il taglio e' a due campi. **Uno solo che non torna e' un carattere preso per un
+  altro** e si aggiusta scrivendoci sopra; da due in su vuol dire che la
+  fotografia non era leggibile. La cifra d'insieme non si conta, perche' cade
+  insieme alla prima che sbaglia e contarla sarebbe contare due volte lo stesso
+  errore.
+
+  Da adesso una lettura cosi' segue la strada di quelle non riuscite: campi da
+  riempire a mano, testo stampato in chiaro, e l'invito a rifare subito la
+  fotografia, con il solito tetto di due tentativi.
+
+  Il registro dice che e' la strada giusta: la stessa carta rifotografata
+  diciassette secondi dopo si e' letta **senza un errore**, e valida per altri
+  2.452 giorni.
+
 ## 0.30.0
 
 Tre cose viste da Felice provando il flusso intero, che ha funzionato tutto
