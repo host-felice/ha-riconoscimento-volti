@@ -677,6 +677,12 @@ const DA_MOSTRARE = ["tipo_documento", "cognome", "nome", "sesso", "data_nascita
                      "numero_documento", "numero_supporto", "numero_personale",
                      "scadenza", "stato_emissione"];
 
+// Il nome per esteso di quello che l'ospite ha dichiarato lui stesso. Non e'
+// una lettura, quindi non ha bisogno di essere guardato: l'ha scelto lui due
+// passi fa.
+const NOME_DEL_TIPO = { carta: "Carta d'Identità", passaporto: "Passaporto",
+                        patente: "Patente" };
+
 function datiAMano(fallita) {
   // Quello che si e' riusciti a proporre dal testo stampato arriva gia' scritto
   // nel campo, ma **segnato come da guardare**: nessuno di questi valori ha una
@@ -687,6 +693,7 @@ function datiAMano(fallita) {
     campi[chiave] = proposti[chiave]
       ? { valore: proposti[chiave], verificato: false }
       : { valore: "" };
+  campi.tipo_documento = { valore: NOME_DEL_TIPO[tipo] || "" };
   return { campi: campi, a_mano: true, sigla_documento: "senza-mrz",
            quanti_proposti: Object.keys(proposti).length,
            perche: fallita && fallita.errore };

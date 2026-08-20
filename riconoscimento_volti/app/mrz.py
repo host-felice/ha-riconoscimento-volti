@@ -32,13 +32,16 @@ FORMATI = {
 
 # La prima lettera dice che documento e', secondo lo standard. Il resto della
 # sigla cambia da paese a paese e non serve a noi.
+# I nomi come li legge l'ospite, per esteso. La lettera resta in
+# 'sigla_documento': serve a scegliere il codice a cinque lettere che vuole
+# Alloggiati Web, e quella e' un'altra cosa da un nome scritto in un modulo.
 TIPI = {
-    "P": "passaporto",
-    "I": "carta d'identita'",
-    "A": "carta d'identita'",
-    "C": "carta d'identita'",
-    "V": "visto",
-    "D": "patente",
+    "P": "Passaporto",
+    "I": "Carta d'Identità",
+    "A": "Carta d'Identità",
+    "C": "Carta d'Identità",
+    "V": "Visto",
+    "D": "Patente",
 }
 
 _lettore = None

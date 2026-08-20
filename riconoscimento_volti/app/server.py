@@ -26,7 +26,7 @@ import ottico
 import registro
 import volti
 
-VERSIONE = "0.21.0"
+VERSIONE = "0.21.1"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 # **"modello" non e' piu' un'opzione del pannello**, e non lo sara' nemmeno dopo.
@@ -988,6 +988,10 @@ def leggi_mrz():
     esito = mrz.analizza_altrove(_immagine("immagine"),
                                  anche_ottico=bool(OPZIONI["lettura_ottica"]))
     esito = _raddrizza_il_tipo(esito, _campo("tipo_dichiarato"))
+    # Nel campo che l'ospite legge ci va il nome per esteso, non la lettera
+    # dello standard: "Passaporto", non "P". La lettera resta in
+    # 'sigla_documento', dove serve.
+    (esito.get("campi") or {}).get("tipo_documento", {})["valore"] = esito["tipo_documento"]
     esito["millisecondi"] = _millisecondi(partenza)
     validita = esito.get("validita") or {}
     log.info("mrz: %s, seconda passata %s, campi da correggere %s, %s, memoria %s MB",

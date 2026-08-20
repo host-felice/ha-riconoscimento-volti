@@ -25,7 +25,7 @@ def esito(formato, lettera):
 r = server._raddrizza_il_tipo(esito("TD3", "F"), "passaporto")
 assert r["sigla_documento"] == "P", r
 assert r["campi"]["tipo_documento"]["valore"] == "P", r
-assert r["tipo_documento"] == "passaporto", r
+assert r["tipo_documento"] == "Passaporto", r
 assert r["tipo_letto_male"] == "F", r
 
 # --- quando la lettera e' gia' giusta non si tocca niente ---------------------

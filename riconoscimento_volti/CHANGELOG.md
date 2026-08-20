@@ -3,6 +3,16 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.21.1
+
+- **Il tipo di documento si legge per esteso**: "Passaporto", "Carta d'Identità",
+  "Patente". Nel campo compariva la lettera dello standard, `P` o `I`, che non
+  vuol dire niente per chi la legge. La lettera resta dov'e' utile, cioe' dove
+  servira' a scegliere il codice a cinque lettere che vuole Alloggiati Web.
+- Quando i dati si scrivono a mano quel campo arriva **gia' compilato e senza
+  bordo rosso**: non e' una lettura da controllare, e' il documento che l'ospite
+  ha dichiarato lui stesso due passi prima.
+
 ## 0.21.0
 
 - **Anche la patente propone i campi, invece di lasciare il modulo vuoto.**
