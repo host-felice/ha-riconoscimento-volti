@@ -327,19 +327,16 @@ async function accendi(chiave) {
 }
 
 function avvisaSeScarsa(chiave, mirino) {
-  // Le webcam dei portatili danno 720 punti: bastano per una faccia, sono
-  // pochi per le righe di caratteri, e conviene dirlo prima dello scatto.
-  const nota = mirino.querySelector(".risoluzione");
-  const misure = flussi[chiave].getVideoTracks()[0].getSettings();
-  const lato = Math.max(misure.width || 0, misure.height || 0);
-  if (chiave !== "selfie" && lato && lato < 1600) {
-    nota.textContent = "Questa fotocamera dà " + lato + " pixel, e sono pochi per un "
-      + "documento. Avvicinalo fino a riempire tutto il riquadro, oppure rifai la prova "
-      + "dal telefono.";
-    nota.style.display = "block";
-  } else {
-    nota.style.display = "none";
-  }
+  // **Non si giudica piu' la fotocamera dai pixel dell'anteprima.** Diceva
+  // "pochi pixel" anche su uno Xiaomi 12, che di fotocamera ne ha da vendere:
+  // quel numero non e' quanto vede il sensore, e' quanto il browser decide di
+  // mandare all'anteprima, e sui telefoni buoni non c'entra niente con la
+  // qualita' della fotografia. Un avviso che si sbaglia sui telefoni buoni fa
+  // solo rifare una prova che andava bene.
+  //
+  // Il giudizio vero ce l'abbiamo gia' e arriva dopo lo scatto: se il documento
+  // non si e' letto, si dice di rifare la foto. Quello e' misurato.
+  mirino.querySelector(".risoluzione").style.display = "none";
 }
 
 function spegni(chiave) {
@@ -686,7 +683,7 @@ function schedaVolto(r) {
 const NOMI_CAMPI = {
   tipo_documento: "tipo di documento",
   cognome: "cognome", nome: "nome", sesso: "sesso",
-  data_nascita: "data di nascita", comune_nascita: "comune di nascita",
+  data_nascita: "data di nascita",
   numero_documento: "numero documento", scadenza: "scadenza",
   comune_emissione: "comune di emissione"
 };
@@ -697,9 +694,14 @@ const NOMI_CAMPI = {
 // vogliono dire niente per chi ha il documento in mano, e i primi due sono
 // italiani per definizione finche' si prova con italiani. La cittadinanza
 // tornera' quando sara' un menu' che si completa da solo.
-const DA_MOSTRARE = ["tipo_documento", "cognome", "nome", "sesso",
-                     "data_nascita", "comune_nascita",
-                     "numero_documento", "scadenza", "comune_emissione"];
+// **Solo quello che si legge dal documento.** Sesso e comune di nascita sono
+// usciti: il primo la patente non lo scrive, il secondo la banda ottica non ce
+// l'ha, quindi su meta' dei documenti restavano due caselle vuote da battere a
+// macchina. Il banco di prova misura la lettura, non raccoglie anagrafiche: chi
+// prova non deve compilare niente che il documento non dica.
+const DA_MOSTRARE = ["tipo_documento", "cognome", "nome",
+                     "data_nascita", "numero_documento", "scadenza",
+                     "comune_emissione"];
 
 
 // Il nome per esteso di quello che l'ospite ha dichiarato lui stesso. Non e'
@@ -752,13 +754,15 @@ function campiModificabili(r) {
 
 function schedaMrz(r) {
   if (r.a_mano) {
-    return '<div class="passo"><div class="verdetto no">' + (tipo === "patente"
-        ? "I dati della patente li scrivi tu" : "I dati non si sono presi da soli") + "</div>" +
-      "<p>" + (tipo === "patente"
-        ? "Con la patente <b>i dati li scrivi tu</b>, qui sotto."
+    // Sulla patente i dati si leggono dal testo stampato, quindi arrivano gia'
+    // scritti: il lavoro dell'ospite e' controllarli, non batterli a macchina.
+    const letti = r.quanti_proposti > 0;
+    return '<div class="passo"><div class="verdetto ' + (letti ? "si" : "no") + '">' +
+      (letti ? "I dati del documento" : "I dati non si sono presi da soli") + "</div>" +
+      "<p>" + (letti
+        ? "Li ho letti dal documento: <b>controllali e correggi dove serve</b>."
         : "Non sono riuscito a prendere i dati da solo"
           + (r.perche ? " (" + r.perche + ")" : "") + ", quindi <b>li scrivi tu</b> qui sotto.")
-      + (r.quanti_proposti ? " Quello che sono riuscito a leggere l&rsquo;ho gi&agrave; scritto." : "")
       + "</p>" +
       testoStampato(r) + campiModificabili(r) +
       '<button id="conferma">Sì, i dati sono giusti</button></div>';
@@ -871,8 +875,13 @@ function registra(volto, dati, porta) {
   const vettori = { [volto.modello]: volto.vettore_selfie };
   for (const [n, d] of Object.entries(volto.altri_modelli || {}))
     if (d.vettore_selfie) vettori[n] = d.vettore_selfie;
-  // Il doppione si riconosce sui **dati**, non sull'etichetta.
-  attesi = attesi.filter(a => a.id !== id)
+  // **Il doppione si riconosce anche dal nome.** Sul numero del documento non
+  // bastava: la stessa persona che prova prima con la patente e poi con la carta
+  // d'identita' sono due numeri diversi, e finiva nella lista due volte. Due
+  // voci per una persona contano due arrivi dove ce n'e' uno.
+  const stessoNome = nome !== id && nome.trim().toUpperCase();
+  attesi = attesi.filter(a => a.id !== id
+                              && !(stessoNome && a.nome.trim().toUpperCase() === stessoNome))
                  .concat([{ id: id, nome: nome, vettori: vettori,
                             // Da quale delle due porte e' entrato: confronto
                             // automatico o occhio dell'host. Non e' burocrazia,

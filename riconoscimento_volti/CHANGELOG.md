@@ -3,6 +3,31 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.35.0
+
+Quattro cose viste provando il flusso intero, l'ultima e' un guasto.
+
+- **La stessa persona non finisce piu' due volte nella lista.** Il doppione si
+  riconosceva dal numero del documento, e chi prova prima con la patente e poi
+  con la carta d'identita' sono due numeri diversi: ne uscivano due voci con lo
+  stesso nome. Adesso si guarda anche il nome. Due voci per una persona
+  contano due arrivi dove ce n'e' uno.
+- **Sulla patente i dati si controllano, non si scrivono.** Diceva ancora "i dati
+  della patente li scrivi tu", che era il testo di quando non si leggevano.
+  Adesso che arrivano gia' scritti dice di controllarli e correggere dove serve,
+  e il riquadro non e' piu' rosso, perche' non e' successo niente di male.
+- **Via il sesso e il comune di nascita.** Il primo la patente non lo scrive, il
+  secondo la banda ottica non ce l'ha: su meta' dei documenti restavano due
+  caselle vuote da battere a macchina. **Il banco misura la lettura, non raccoglie
+  anagrafiche:** chi prova non deve compilare niente che il documento non dica.
+- **Via l'avviso "questa fotocamera da' pochi pixel".** Compariva anche su uno
+  Xiaomi 12, che di fotocamera ne ha da vendere. Quel numero non e' quanto vede
+  il sensore, e' quanto il browser decide di mandare all'anteprima, e sui telefoni
+  buoni non c'entra niente con la qualita' della fotografia. Un avviso che si
+  sbaglia proprio sui telefoni buoni fa solo rifare una prova che andava bene. Il
+  giudizio vero ce l'abbiamo gia' e arriva dopo lo scatto, quando il documento non
+  si e' letto: quello e' misurato.
+
 ## 0.34.0
 
 - **Si puo' azzerare il quaderno delle prove.** Serve prima di mandare il banco
