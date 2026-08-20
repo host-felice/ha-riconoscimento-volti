@@ -3,6 +3,31 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.22.0
+
+Da una prova con la patente andata a vuoto: nel modulo compariva solo "Patente"
+e nient'altro, come se la lettura non avesse girato. **Nel registro dell'add-on
+non c'era una riga per dirlo**, e non si poteva sapere.
+
+- **Una lettura che non riesce lascia una riga come tutte le altre**, con quante
+  righe di testo stampato ha trovato, quanti campi ha proposto e quanto ci ha
+  messo. Prima l'errore saltava il punto in cui si scrive, quindi su un
+  documento senza banda ottica, cioe' la patente, il caso normale era
+  invisibile. Era il buco che impediva di capire cosa fosse successo.
+- **Il testo letto si apre da solo quando non si e' proposto niente.** E' il solo
+  momento in cui serve vederlo, perche' distingue due guasti diversi: la lettura
+  che non ha girato affatto, e la lettura che ha girato e dentro non ha trovato
+  niente di riconoscibile.
+- **Gli avvisi che sono ragionamenti nostri non si mostrano piu' a chi prova.**
+  Una faccia sconosciuta in un solo scatto e' quello che il rilevatore inventa su
+  un fotogramma mosso: a chi sta facendo il favore di provare diceva che
+  qualcosa non andava, e non era vero. Resta nel registro, che e' dove lo
+  leggiamo noi.
+- **I numeri della porta stanno piegati.** Chi prova vede il verdetto; i
+  punteggi, le soglie, i millisecondi e il secondo modello si aprono a chi li
+  vuole. Sono la stessa cosa di prima, non piu' in faccia a chi non li ha
+  chiesti.
+
 ## 0.21.1
 
 - **Il tipo di documento si legge per esteso**: "Passaporto", "Carta d'Identità",

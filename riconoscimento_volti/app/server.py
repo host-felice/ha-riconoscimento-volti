@@ -26,7 +26,7 @@ import ottico
 import registro
 import volti
 
-VERSIONE = "0.21.1"
+VERSIONE = "0.22.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 # **"modello" non e' piu' un'opzione del pannello**, e non lo sara' nemmeno dopo.
@@ -165,19 +165,6 @@ def _errore_senza_volto(e):
 def _errore_modelli_diversi(e):
     return jsonify({"errore": str(e), "come_si_rimedia":
                     "i vettori degli attesi vanno rifatti con il modello in uso"}), 400
-
-
-@app.errorhandler(mrz.NessunaMRZ)
-def _errore_senza_mrz(e):
-    # Il testo stampato viaggia anche qui: su un documento senza banda ottica,
-    # come la patente, la banda che manca non e' una lettura fallita, e' l'unica
-    # lettura possibile che diventa quella stampata.
-    testo = getattr(e, "testo_stampato", [])
-    # I campi che si riescono a proporre dal solo testo stampato. Sono pochi e
-    # **nessuno di loro e' verificato**, a differenza di quelli della banda
-    # ottica: la pagina li segna come da guardare, non come letti bene.
-    return jsonify({"errore": str(e), "testo_stampato": testo,
-                    "campi_proposti": ottico.proponi(testo)}), 422
 
 
 @app.errorhandler(mrz.LettoreAssente)
@@ -985,8 +972,26 @@ def leggi_mrz():
     soli che si possono scrivere nel modulo senza farli ricontrollare a mano.
     """
     partenza = time.time()
-    esito = mrz.analizza_altrove(_immagine("immagine"),
-                                 anche_ottico=bool(OPZIONI["lettura_ottica"]))
+    try:
+        esito = mrz.analizza_altrove(_immagine("immagine"),
+                                     anche_ottico=bool(OPZIONI["lettura_ottica"]))
+    except mrz.NessunaMRZ as guaio:
+        # **Una lettura che non riesce lascia una riga come tutte le altre.**
+        # Prima non ne lasciava nessuna, perche' l'errore saltava il punto in cui
+        # si scrive: su un documento senza banda ottica, cioe' la patente, quello
+        # e' il caso normale e restava invisibile. Senza questa riga non si sa
+        # nemmeno se la lettura del testo stampato ha girato.
+        testo = getattr(guaio, "testo_stampato", [])
+        proposti = ottico.proponi(testo)
+        millisecondi = _millisecondi(partenza)
+        log.info("mrz: non letta (%s), righe stampate %d, campi proposti %d, %d ms, memoria %s MB",
+                 guaio, len(testo), len(proposti), millisecondi, _memoria_mb())
+        _registra("mrz", {"formato": None, "affidabile": False,
+                          "righe_stampate": len(testo), "quanti_proposti": len(proposti),
+                          "millisecondi": millisecondi})
+        return jsonify({"errore": str(guaio), "testo_stampato": testo,
+                        "campi_proposti": proposti,
+                        "millisecondi": millisecondi}), 422
     esito = _raddrizza_il_tipo(esito, _campo("tipo_dichiarato"))
     # Nel campo che l'ospite legge ci va il nome per esteso, non la lettera
     # dello standard: "Passaporto", non "P". La lettera resta in

@@ -703,7 +703,11 @@ function testoStampato(r) {
   if (!r.testo_stampato || !r.testo_stampato.length) return "";
   const pre = document.createElement("pre");
   pre.textContent = r.testo_stampato.join(String.fromCharCode(10));
-  return '<details><summary>Il testo stampato che la macchina ha letto ('
+  // Aperto quando non si e' proposto niente: e' il solo caso in cui quel testo
+  // serve davvero, perche' dice se la lettura non ha girato oppure ha girato e
+  // non si e' riconosciuto niente dentro. Sono due guasti diversi.
+  const aperto = r.a_mano && !r.quanti_proposti ? " open" : "";
+  return "<details" + aperto + "><summary>Il testo stampato che la macchina ha letto ("
     + r.testo_stampato.length + " righe)</summary>" + pre.outerHTML + "</details>";
 }
 
@@ -960,21 +964,22 @@ function schedaPorta(r) {
              (finto ? '<br><span style="color:#b3261e">ma davanti alla telecamera era una fotografia, ' +
                       p.minifasnet.punteggio.toFixed(3) + "</span>" : "") + "</td></tr>";
   }
-  // Una faccia sconosciuta in un solo scatto non e' una persona: e' quello che
-  // il rilevatore inventa su un fotogramma mosso. Si avvisa solo per chi resta
-  // fermo davanti all'obiettivo in piu' scatti.
+  // **Una faccia sconosciuta in un solo scatto non si racconta a nessuno.** E'
+  // quello che il rilevatore inventa su un fotogramma mosso, cioe' un
+  // ragionamento nostro: a chi sta facendo la prova dice solo che qualcosa non
+  // va, e non e' vero. Resta nel registro dell'add-on, che e' dove lo leggiamo.
+  // Le persone in piu' invece si dicono: quelle stanno ferme in piu' scatti.
   const estranei = r.persone_in_piu
     ? '<div class="avviso">' + r.persone_in_piu + (r.persone_in_piu === 1 ? " persona" : " persone")
       + " non fra gli attesi, e ci sono in più scatti. Alla porta vuol dire: c'è qualcuno che non ha fatto il check-in.</div>"
-    : (r.sconosciuti.length
-      ? '<div class="avviso">' + r.sconosciuti.length + " faccia/e sconosciuta/e, ma in un solo scatto: "
-        + "quasi certamente un fotogramma mosso, non una persona.</div>"
-      : "");
+    : "";
   return '<div style="margin-top:.8rem">' +
     '<div class="verdetto ' + (dentro ? "si" : "no") + '">' +
       (dentro ? "Riconosciuti " + dentro + " su " + r.tutti.length : "Nessuno riconosciuto") + "</div>" +
+    estranei +
+    "<details><summary>I numeri</summary>" +
     "<p>" + r.volti_trovati + " facce in " + r.scatti + " scatti, soglia " + r.soglia.toFixed(2) +
-    ", " + r.millisecondi + " ms</p>" + estranei +
+    ", " + r.millisecondi + " ms</p>" +
     '<table class="dettagli">' + righe +
       riga("modello", r.modello) +
       Object.entries(r.altri_modelli || {}).map(([n, d]) =>
@@ -985,7 +990,7 @@ function schedaPorta(r) {
             + " su soglia " + d.soglia.toFixed(3)
             + ", " + d.riconosciuti.length + " su " + d.tutti.length
           : n + ": non misurato, " + d.motivo)).join("") +
-    "</table></div>";
+    "</table></details></div>";
 }
 </script>
 </body>
