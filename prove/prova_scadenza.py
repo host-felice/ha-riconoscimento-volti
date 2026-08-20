@@ -103,7 +103,7 @@ print("\n6. la lettura del documento restituisce il giudizio sulla scadenza")
 scaduto = {"formato": "TD1", "seconda_passata": False, "da_correggere": [],
            "validita": mrz._validita(campo(fra_anni(-2))), "campi": {}}
 server.OPZIONI["parola"] = ""
-mrz.analizza_altrove = lambda dati: dict(scaduto)
+mrz.analizza_altrove = lambda dati, **comunque: dict(scaduto)
 cliente = server.app.test_client()
 r = cliente.post("/mrz", data={"immagine": (io.BytesIO(b"finta"), "d.jpg")},
                  content_type="multipart/form-data").get_json()

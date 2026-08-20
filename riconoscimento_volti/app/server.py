@@ -26,7 +26,7 @@ import ottico
 import registro
 import volti
 
-VERSIONE = "0.25.0"
+VERSIONE = "0.26.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 # **"modello" non e' piu' un'opzione del pannello**, e non lo sara' nemmeno dopo.
@@ -1004,7 +1004,9 @@ def leggi_mrz():
     # Nel campo che l'ospite legge ci va il nome per esteso, non la lettera
     # dello standard: "Passaporto", non "P". La lettera resta in
     # 'sigla_documento', dove serve.
-    (esito.get("campi") or {}).get("tipo_documento", {})["valore"] = esito["tipo_documento"]
+    campo_tipo = (esito.get("campi") or {}).get("tipo_documento")
+    if campo_tipo and esito.get("tipo_documento"):
+        campo_tipo["valore"] = esito["tipo_documento"]
     esito["millisecondi"] = _millisecondi(partenza)
     validita = esito.get("validita") or {}
     log.info("mrz: %s, seconda passata %s, campi da correggere %s, %s, memoria %s MB",

@@ -20,6 +20,7 @@ servizio: stesso innesco, stesso viaggio, e i suoi 370 MB se ne vanno quando
 quel processo muore. Aprire il modello a ogni lettura costa 0,6 secondi su un
 N4000, misurati, e non sposta il conto.
 """
+import datetime
 import re
 
 import cv2
@@ -83,61 +84,56 @@ def righe(dati_binari, lato=LATO):
 
 
 # Una data stampata: due cifre, due cifre, quattro cifre, separate come capita.
-DATA = re.compile(r"\b(\d{2})[.,/\- ](\d{2})[.,/\- ](\d{4})\b")
+DATA = re.compile(r"\b(\d{2})[.,/\- ]{1,3}(\d{2})[.,/\- ]{1,3}(\d{2,4})\b")
 
-# Quante date porta stampate una patente italiana: nascita, rilascio, scadenza,
-# in quest'ordine dall'alto verso il basso.
-DATE_DELLA_PATENTE = 3
+
+def _anno(cifre):
+    """Le due cifre dell'anno diventano quattro, e il secolo si sceglie.
+
+    Sulla patente la data di nascita e' stampata con l'anno a due cifre: letta
+    davvero il 20 agosto 2026, `01/03/80`. Il taglio e' quello di sempre: fino
+    all'anno in corso siamo nel Duemila, oltre nel Novecento.
+
+    ponytail: vale per una data di nascita. Una scadenza a due cifre finirebbe
+    nel Novecento, ma sui documenti visti finora la scadenza l'anno ce l'ha
+    intero, e inventare adesso il secondo taglio vuol dire indovinare.
+    """
+    if len(cifre) == 4:
+        return cifre
+    return ("20" if int(cifre) <= datetime.date.today().year % 100 else "19") + cifre
 
 
 def proponi(righe):
-    """I campi che si possono proporre dal testo stampato, e come si sanno.
+    """La data di nascita e la scadenza, riconosciute l'una dall'altra.
 
-    **Si propone solo quello che si riconosce dalla forma**, non quello che sta
-    accanto a un'etichetta. Le etichette stampate l'OCR se le sfilaccia
-    (`LUOGOFDATADENASOTA`, misurato il 20 agosto 2026) mentre i valori li legge
-    bene: cercare "quello dopo la scritta Nato il" vuol dire appoggiarsi proprio
-    al pezzo che si rompe.
+    **Sono due le date che servono**, non tre: nascita e scadenza. Quella di
+    rilascio non la chiede nessuno.
 
-    **E solo quando il conto torna esatto.** Una patente porta tre date stampate
-    e sempre nello stesso ordine: nascita, rilascio, scadenza. Se se ne trovano
-    tre, quelle sono. Se se ne trovano due o quattro e' successo qualcos'altro, e
-    allora non si propone niente invece di indovinare.
+    ## Come si riconoscono in mezzo alle altre
 
-    ## La regola che rende verificabile una lettura che non lo era
+    Regola detta da Felice il 20 agosto 2026: sui documenti italiani, carta
+    d'identita' e patente, **la scadenza cade nello stesso giorno e mese della
+    data di nascita**, cambia solo l'anno. Sono lo stesso dato scritto due volte
+    in due punti, ed e' la stessa cosa che fanno le cifre di controllo della
+    banda ottica.
 
-    Detta da Felice il 20 agosto 2026, e viene da una prova vera: al primo scatto
-    la lettura aveva sbagliato **il giorno di nascita** e letto bene la scadenza.
+    Quindi non si conta e non si va a posizione: **si cerca l'unica coppia di
+    date che condivide giorno e mese**. La piu' vecchia e' la nascita, l'altra e'
+    la scadenza, e le due si sono verificate a vicenda. Se le coppie sono zero o
+    piu' d'una non si propone niente: un campo vuoto costa dieci secondi
+    all'ospite, un campo pieno e sbagliato costa una schedina sbagliata alla
+    Questura.
 
-    Sui documenti italiani, carta d'identita' e patente, **la scadenza cade nello
-    stesso giorno e mese della data di nascita**: cambia solo l'anno. Sono lo
-    stesso dato scritto due volte in due punti diversi del documento, ed e' la
-    stessa cosa che fanno le cifre di controllo della banda ottica.
-
-    E le due letture non sono ugualmente difficili: **la scadenza e' stampata piu'
-    grande**, quindi si legge meglio. Quindi quando le due non concordano si tiene
-    il giorno e il mese della scadenza e si corregge la data di nascita, che e' la
-    lettura debole, tenendole il suo anno.
-
-    Quando invece concordano si sono verificate a vicenda, e allora non si
-    mostrano col bordo rosso: nessuno le deve ricontrollare a mano.
+    **Andare a posizione non si poteva.** Il primo tentativo prendeva la prima
+    data e la terza, e una lettura vera l'ha smentito: la data di rilascio esce
+    attaccata al campo che segue (`21/07/20164c.MIT-UCO`), quindi le date
+    riconoscibili non sono tre e non sono in fila.
     """
-    date = ["%s/%s/%s" % (g, m, a) for g, m, a in DATA.findall(" ".join(righe))]
-    if len(date) != DATE_DELLA_PATENTE:
+    date = ["%s/%s/%s" % (g, m, _anno(a)) for g, m, a in DATA.findall(" ".join(righe))]
+    coppie = [(prima, poi) for quante, prima in enumerate(date) for poi in date[quante + 1:]
+              if prima[:5] == poi[:5] and prima[6:] != poi[6:]]
+    if len(coppie) != 1:
         return {}
-    nascita, scadenza = date[0], date[2]
-    concordano = nascita[:5] == scadenza[:5]
-    if not concordano:
-        # Il giorno e il mese buoni sono quelli della scadenza, l'anno resta
-        # quello della nascita: e' l'unico pezzo che la scadenza non sa.
-        nascita = scadenza[:6] + nascita[6:]
-    return {
-        # La scadenza si e' letta bene di suo, e se le due concordano si sono
-        # anche confermate a vicenda: in tutti e due i casi non c'e' niente da
-        # far ricontrollare.
-        "scadenza": {"valore": scadenza, "verificato": True},
-        # La data di nascita e' verificata solo quando le due concordavano gia'.
-        # Se e' stata corretta resta da guardare: l'anno nessuno lo ha
-        # controllato, e la correzione poggia su una regola, non su una lettura.
-        "data_nascita": {"valore": nascita, "verificato": concordano},
-    }
+    nascita, scadenza = sorted(coppie[0], key=lambda quando: quando[6:])
+    return {"data_nascita": {"valore": nascita, "verificato": True},
+            "scadenza": {"valore": scadenza, "verificato": True}}

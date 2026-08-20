@@ -14,33 +14,35 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "..", "riconoscimento_volti", "app"))
 import ottico
 
-# --- una patente letta bene: tre date, e nascita e scadenza concordano ------
-r = ottico.proponi(["ROSSI", "MARIO", "01.03.1980 MESSINA (ME)",
-                    "4a. 12.03.2019", "4b. 07.05.2029", "5. TE1234567X"])
+# --- la patente vera letta il 20 agosto 2026 --------------------------------
+# Le righe sono quelle uscite davvero: l'anno di nascita a due cifre, e la data
+# di rilascio appiccicata al campo che segue, che infatti non deve risultare.
+vera = ["PATENTE DI GUIDA", "ROSSI", "MARIO", "3. 01.03.80 MESSINA (ME)",
+        "4a. 21.07.20164c.MIT-UCO", "4b. 01.03.2030", "5. TE1234567X"]
+r = ottico.proponi(vera)
 assert r["data_nascita"] == {"valore": "01/03/1980", "verificato": True}, r
-assert r["scadenza"] == {"valore": "07/05/2029", "verificato": True}, r
+assert r["scadenza"] == {"valore": "01/03/2030", "verificato": True}, r
 
-# --- il caso vero del 20 agosto 2026: il giorno di nascita letto male --------
-# La scadenza e' stampata piu' grande, quindi si legge meglio, e sui documenti
-# italiani cade nello stesso giorno e mese della nascita: si corregge da li'.
-r = ottico.proponi(["01.05.1978", "12.03.2019", "07.05.2029"])
-assert r["data_nascita"] == {"valore": "01/03/1980", "verificato": False}, r
-assert r["scadenza"]["verificato"] is True, r
-
-# --- anche il mese si corregge, e l'anno di nascita resta il suo --------------
-r = ottico.proponi(["07.11.1978", "12.03.2019", "07.05.2029"])
+# --- l'anno intero funziona uguale -------------------------------------------
+r = ottico.proponi(["01.03.1980", "21.07.2016", "01.03.2030"])
 assert r["data_nascita"]["valore"] == "01/03/1980", r
 
-# --- i separatori cambiano da stampa a stampa, il conto no -------------------
-r = ottico.proponi(["01/03/1980", "12-03-2019", "07 05 2029"])
+# --- chi e' nato nel Duemila non finisce nel Novecento -----------------------
+r = ottico.proponi(["07.05.05", "21.07.2016", "01.03.2030"])
+assert r["data_nascita"]["valore"] == "07/05/2005", r
+
+# --- i separatori cambiano da stampa a stampa --------------------------------
+r = ottico.proponi(["01/03/1980", "21-07-2016", "07. 05. 2027"])
 assert r["data_nascita"]["valore"] == "01/03/1980", r
 
-# --- il conto non torna: non si propone niente invece di indovinare ----------
-for righe in ([], ["01.03.1980"], ["01.03.1980", "12.03.2019"],
-              ["01.03.1980", "12.03.2019", "07.05.2029", "01.01.2000"]):
-    assert ottico.proponi(righe) == {}, righe
+# --- nessuna coppia: una delle due e' stata letta male, non si propone -------
+assert ottico.proponi(["01.05.78", "21.07.2016", "01.03.2030"]) == {}
+
+# --- due coppie: non si sa quale sia la buona, non si propone ----------------
+assert ottico.proponi(["01.03.80", "01.03.2030", "03.09.80", "03.09.2030"]) == {}
 
 # --- il rumore non diventa una data ------------------------------------------
-assert ottico.proponi(["LUOGOFDATADENASOTA", "1234567890", "12.3.2029"]) == {}
+assert ottico.proponi(["LUOGOFDATADENASOTA", "1234567890", "TE1234567X"]) == {}
+assert ottico.proponi([]) == {}
 
-print("la scadenza verifica la data di nascita, e dove non torna la corregge")
+print("la nascita e la scadenza si riconoscono dal giorno e mese che hanno in comune")

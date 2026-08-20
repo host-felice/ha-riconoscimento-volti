@@ -3,6 +3,30 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.26.0
+
+Riscritta la regola che ricava le date dal testo stampato, sulle righe vere di
+una patente letta il 20 agosto 2026. Il registro diceva "date trovate: 1" mentre
+in pagina se ne vedevano tre: non sbagliava la lettura, sbagliava la regola.
+
+- **L'anno puo' avere due cifre.** Sulla patente la data di nascita e' stampata
+  cosi': `01/03/80`. La regola ne pretendeva quattro, quindi la data di nascita
+  non la vedeva proprio, e l'unica che contava era la scadenza. Il taglio e'
+  quello di sempre: fino all'anno in corso siamo nel Duemila, oltre nel
+  Novecento.
+- **Le date che servono sono due**, nascita e scadenza. Quella di rilascio non la
+  chiede nessuno.
+- **Non si conta piu' e non si va piu' a posizione.** Si cerca **l'unica coppia
+  di date che condivide giorno e mese**: la piu' vecchia e' la nascita, l'altra
+  la scadenza, e le due si sono verificate a vicenda. Andare a posizione non si
+  poteva piu', e a dirlo e' la stessa lettura: la data di rilascio esce attaccata
+  al campo che segue (`21/07/20164c.MIT-UCO`), quindi le date riconoscibili non
+  sono tre e non sono in fila. Zero coppie o piu' d'una, non si propone niente.
+- **Il tipo di documento non fa piu' cadere la lettura** quando manca. Bastava un
+  esito senza quel campo e la richiesta finiva in errore invece di rispondere.
+  Trovato dal controllo sulla scadenza, che era rotto dalla 0.24.0 e non se ne
+  era accorto nessuno: adesso i controlli si lanciano tutti e cinque.
+
 ## 0.25.0
 
 - **Meno campi da guardare.** Restano tipo di documento, cognome, nome, sesso,
