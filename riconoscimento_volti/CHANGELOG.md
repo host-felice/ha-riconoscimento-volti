@@ -3,6 +3,37 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.40.0
+
+**La lettura non e' debole: erano sbagliate le coordinate che le davo io.**
+Fatta girare la lettura vera sulle fotografie dei documenti, invece di
+immaginarne il risultato, si vede che i valori li prende tutti giusti:
+`MESSINA(ME)01.03.1980`, `CA00000AB`, il codice fiscale intero. **Quello che
+perde sono gli spazi fra le parole**, e li perde soprattutto nelle etichette,
+che sono stampate piccole e strette.
+
+Da li' venivano tre guasti su quattro:
+
+- **L'etichetta si cerca dentro la riga, non fra le parole.** Cercavo la parola
+  `NASCITA` e la riga diceva `LUOGOEDATADINASCITA`: parola intera non ce n'era
+  nessuna. Adesso si cerca come pezzo di stringa, con gli spazi tolti da tutte e
+  due le parti. Funzionava solo il comune di emissione, e per caso: li' la barra
+  aveva lasciato in piedi `MUNICIPALITY`.
+- **Il comune si pesca in coda dopo aver normalizzato, non prima.** La residenza
+  usciva `VIALEDEITIGLI,N.12TERAMO(TE)`, che diviso in parole ne fa **una
+  sola**, quindi la coda non esisteva. Normalizzare per primo mette uno spazio
+  dove c'erano cifre e punteggiatura, e le parole tornano.
+- **Sulla patente il numero del campo puo' essere maiuscolo.** `4C.` invece di
+  `4c.`: il comune di emissione era stato letto benissimo, `MIT-UCO`, e buttato
+  perche' il marcatore accettava solo la minuscola.
+- E il campo 3 della patente puo' andare **a capo** fra la data e il comune. Non
+  era un guasto (le righe si uniscono prima di cercare), ma adesso c'e' un
+  controllo che lo dimostra.
+
+Verificato sulle fotografie vere di una carta d'identita' fronte e retro e di un
+passaporto: escono comune di nascita, comune di emissione e comune di residenza,
+tutti e tre giusti.
+
 ## 0.39.0
 
 Guardati una carta d'identita' e un passaporto veri, con il permesso di Felice,

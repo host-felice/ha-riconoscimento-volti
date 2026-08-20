@@ -48,8 +48,8 @@ assert ottico.proponi([]) == {}
 # --- i campi numerati della patente ------------------------------------------
 # "se tagli 1. 2. 3. 4a. 4b. 5. e ignori 7. e 9., riconosce tutto bene", detto
 # da Felice il 20 agosto 2026 guardando cosa era uscito davvero.
-patente = ["PATENTE DI GUIDA", "1. MARRA", "2. FELICE", "3. 01.03.80 MESSINA (ME)",
-           "4a. 21.07.201664c.MIT-UCTO", "4b. 01.03.2030", "5. U1A000000B", "7.", "9. B"]
+patente = ["PATENTEDIGUIDA", "1.MARRA", "2.FELICE", "3.01.03.80", "MESSINA(ME)",
+           "4a.21.07.2016", "4C.MIT-UCO", "4b.01.03.2030", "5.U1A000000B", "9.B"]
 r = ottico.dalla_patente(patente)
 assert r["cognome"] == {"valore": "MARRA"}, r
 assert r["nome"]["valore"] == "FELICE", r
@@ -98,7 +98,6 @@ assert comuni.cerca("") is None
 
 # --- il campo 3 porta il comune di nascita, il 4c quello di emissione --------
 r = ottico.dalla_patente(patente)
-assert r["comune_nascita"]["valore"] == "MESSINA (ME)", r
 # MIT-UCO vuol dire duplicato dell'Ufficio Centrale Operativo, che sta a Roma,
 # e si riconosce anche storpiato: letto davvero `MIT-UCTO`
 assert r["comune_emissione"]["valore"] == "ROMA (RM)", r
@@ -110,18 +109,21 @@ print("i comuni si leggono dall'elenco della Polizia, con due caratteri di tolle
 # --- i luoghi presi dall'etichetta stampata ---------------------------------
 # Righe ricalcate su una carta d'identita' e un passaporto veri, guardati il
 # 20 agosto 2026. L'etichetta esce sfilacciata ma la parola intera sopravvive.
-fronte = ["CARTA DI IDENTITA / IDENTITY CARD", "COMUNEOI/MUNICVPALITY", "TERAMO",
-          "COGNOME / SURNAME", "MARRA", "LUOGO E DATA DI NASCITA",
-          "PLACE AND DATE OF BIRTH", "MESSINA (ME) 01.03.1980"]
+# **Le righe sono quelle uscite davvero dalla lettura**, spazi mangiati
+# compresi: e' proprio quello che aveva rotto il primo tentativo, che cercava
+# parole intere e nelle etichette non ne trovava nessuna.
+fronte = ["CARTA DIIDENTITA /IDENTITY CARD", "COMUNFOI/MUNICIPALITY", "TERAMO",
+          "COGNOME/SURNAME", "MARRA", "LUOGOEDATADINASCITA",
+          "PLACEANDDATEOFBIRTH", "MESSINA(ME)01.03.1980"]
 r = ottico.dalle_etichette(fronte)
 assert r["comune_emissione"]["valore"] == "TERAMO (TE)", r
 # il valore sta due righe sotto, perche' fra le due etichette c'e' l'inglese
 assert r["comune_nascita"]["valore"] == "MESSINA (ME)", r
 
-retro = ["CODICE FISCALE", "RSSMRA80A01H501U",
-         "INDIRIZZO DI RESIDENZA / RESIDENCE",
-         "VIALE DEI TIGLI, N. 12 TERAMO (TE)",
-         "ESTREMI ATTO DI NASCITA", "1234 p5 sB-1980 012345"]
+retro = ["CODICEFISCALE", "ESTREMIATTODINASCITA", "FISCALCODE",
+         "1234p5sB-1980012345", "RSSMRA80A01H501U",
+         "INDIRIZZODIRESIDENZA/RESIDENCE",
+         "VIALEDEITIGLI,N.12TERAMO(TE)"]
 r = ottico.dalle_etichette(retro)
 # il comune sta in fondo all'indirizzo, non e' tutta la riga
 assert r["residenza"]["valore"] == "TERAMO (TE)", r
@@ -129,13 +131,22 @@ assert r["residenza"]["valore"] == "TERAMO (TE)", r
 # della provincia si pretende il nome esatto, altrimenti usciva Pisa
 assert "comune_nascita" not in r, r
 
-passaporto = ["Data di nascita. Date of birth. (4)", "01 MAR/MAR 1980",
-              "Sesso. Sex. (5) Luogo di nascita. Place of birth. (6)",
-              "M    MESSINA (ME)"]
+passaporto = ["Datadinascita.Dateofbirth.Datedenaissance.(4)", "01MAR/MAR1980",
+              "Sesso.Sex.Sexe.(5)Luogodi nascita.Placeof birthLieu denaissance. (6)",
+              "MESSINA(ME)"]
 assert ottico.dalle_etichette(passaporto)["comune_nascita"]["valore"] == "MESSINA (ME)"
 
 # senza etichetta non si prende niente
-assert ottico.dalle_etichette(["CARTA DI IDENTITA", "TERAMO"]) == {}
+assert ottico.dalle_etichette(["CARTA DIIDENTITA", "TERAMO"]) == {}
 assert ottico.dalle_etichette([]) == {}
 
 print("i luoghi si trovano dall'etichetta che li annuncia, anche sfilacciata")
+
+# --- la patente come esce davvero dalla lettura ------------------------------
+r = ottico.dalla_patente(patente)
+# il comune di nascita va a capo rispetto al numero del campo e alla data
+assert r["comune_nascita"]["valore"] == "MESSINA (ME)", r
+# e il numero del campo puo' avere la lettera maiuscola: 4C vale come 4c
+assert r["comune_emissione"]["valore"] == "ROMA (RM)", r
+
+print("la patente si legge anche senza spazi e con i numeri di campo maiuscoli")

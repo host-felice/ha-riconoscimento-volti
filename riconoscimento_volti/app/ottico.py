@@ -105,7 +105,7 @@ def _anno(cifre):
     return ("20" if int(cifre) <= datetime.date.today().year % 100 else "19") + cifre
 
 
-MARCATORE = re.compile(r"([1-9][abc])[.,]|(?<!\d)([1-9])[.,]")
+MARCATORE = re.compile(r"([1-9][abc])[.,]|(?<!\d)([1-9])[.,]", re.IGNORECASE)
 # Due modi di scrivere la stessa cosa. Un numero da solo (`3.`) si prende solo se
 # non ha una cifra davanti, altrimenti dentro `21.07.2016` ci sarebbero tre
 # marcatori finti. Un numero con la lettera (`4c.`) si prende sempre, perche' la
@@ -125,7 +125,8 @@ DALLA_PATENTE = (("1", "cognome", NOME_DI_PERSONA),
 
 def _pezzi_numerati(testo):
     """Quello che sta scritto dopo ogni numero di campo, fino al numero dopo."""
-    tagli = [(quello.start(), quello.end(), quello.group(1) or quello.group(2))
+    tagli = [(quello.start(), quello.end(),
+               (quello.group(1) or quello.group(2)).lower())
              for quello in MARCATORE.finditer(testo)]
     pezzi = {}
     for quante, (_, fine, numero) in enumerate(tagli):
@@ -166,8 +167,12 @@ def dalla_patente(righe):
 
 def _aggiungi(fuori, chiave, letto):
     """Il comune si scrive come lo scrive l'elenco della Polizia, non come lo ha
-    letto la macchina: e' l'elenco che decide, e sotto c'e' gia' il suo codice."""
-    trovato = comuni.cerca(letto)
+    letto la macchina: e' l'elenco che decide, e sotto c'e' gia' il suo codice.
+
+    Si pesca in coda come per gli altri documenti: nel campo 3 della patente,
+    accanto al comune, ci sta anche la data di nascita.
+    """
+    trovato = _comune_nel_pezzo(letto)
     if trovato:
         fuori[chiave] = {"valore": "%s (%s)" % (trovato["nome"], trovato["provincia"])}
 
@@ -199,8 +204,16 @@ ETICHETTE = (("comune_emissione", ("COMUNE", "MUNICIPALITY")),
 CODE = (3, 2, 1)
 
 
-def _somiglia(parola, etichette):
-    return any(comuni.distanza(parola, e) <= comuni.TETTO for e in etichette)
+def _c_e_l_etichetta(riga, etichette):
+    """Se una delle etichette compare dentro la riga.
+
+    **Si cerca dentro la riga, non fra le parole.** La lettura gli spazi se li
+    mangia, e proprio nelle etichette, che sono stampate piccole e strette: sulla
+    carta d'identita' esce `LUOGOEDATADINASCITA` tutto attaccato, sul passaporto
+    `Datadinascita.Dateofbirth.` Cercare la parola intera li' dentro non la trova
+    mai. Cercarla come pezzo di stringa si.
+    """
+    return any(e in riga for e in etichette)
 
 
 def _comune_nel_pezzo(pezzo):
@@ -225,7 +238,11 @@ def _comune_nel_pezzo(pezzo):
     pezzo = DATA.sub(" ", pezzo or "")
     fra_parentesi = comuni.PROVINCIA.search(pezzo)
     sigla = fra_parentesi.group(0) if fra_parentesi else ""
-    parole = comuni.PROVINCIA.sub(" ", pezzo).split()
+    # **Si divide in parole dopo aver normalizzato, non prima.** La lettura
+    # restituisce `VIALEDEITIGLI,N.12TERAMO` in un pezzo solo: diviso cosi'
+    # com'e' fa una parola sola e la coda non esiste. Normalizzare mette uno
+    # spazio dove c'erano cifre e punteggiatura, e le parole tornano.
+    parole = comuni.normalizza(comuni.PROVINCIA.sub(" ", pezzo)).split()
     if not parole:
         return None
     for quante in (len(parole),) + CODE:
@@ -257,18 +274,23 @@ def dalle_etichette(righe):
     Si guarda **due righe sotto** e non una: l'etichetta italiana e quella
     inglese vanno spesso a capo fra loro, e il valore finisce nella terza riga.
     """
-    pulite = [comuni.normalizza(r) for r in righe]
+    # Le etichette si cercano senza spazi da tutte e due le parti, perche' la
+    # lettura li perde: `LUOGO E DATA DI NASCITA` esce `LUOGOEDATADINASCITA`.
+    pulite = [comuni.normalizza(r).replace(" ", "") for r in righe]
     fuori = {}
     for quante, riga in enumerate(pulite):
-        parole = riga.split()
         for chiave, etichette in ETICHETTE:
             if chiave in fuori:
                 continue
-            dove = next((i for i, p in enumerate(parole) if _somiglia(p, etichette)), None)
-            if dove is None:
+            if not _c_e_l_etichetta(riga, etichette):
                 continue
-            candidati = [" ".join(righe[quante].split()[dove + 1:])]
-            candidati += righe[quante + 1:quante + 3]
+            # Il valore sta nella riga stessa, e se li' non c'e' in una delle due
+            # sotto: fra l'etichetta italiana e il valore ci va di mezzo quella
+            # inglese. La riga intera si passa cosi' com'e' e il comune si pesca
+            # in coda, che e' dove sta: tagliarla all'etichetta non si puo',
+            # perche' l'etichetta l'abbiamo trovata nella riga **senza spazi** e
+            # quel numero li' non vuol dire niente sulla riga vera.
+            candidati = list(righe[quante:quante + 3])
             for candidato in candidati:
                 trovato = _comune_nel_pezzo(candidato)
                 if trovato:
