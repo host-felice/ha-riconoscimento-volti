@@ -643,11 +643,10 @@ function dettoMinifas(m) {
 
 function schedaVolto(r) {
   if (r.errore) return avviso("il confronto dei volti non è riuscito: " + r.errore);
-  const fantasma = r.documento.altri_volti_px.length
-    ? '<div class="avviso">Sul documento ho trovato più di una faccia (' +
-      r.documento.altri_volti_px.join(", ") + ' pixel di larghezza). Ho misurato la più grande: ' +
-      "le altre di solito sono l'immagine fantasma stampata contro le falsificazioni.</div>"
-    : "";
+  // L'immagine fantasma stampata sui documenti contro le falsificazioni fa
+  // trovare piu' di una faccia, ed e' normale. Lo diceva all'ospite, che non
+  // deve farci niente: resta nel registro, dove serve a noi.
+  const fantasma = "";
   const vicino = (r.selfie.seconda_passata || r.documento.seconda_passata)
     ? riga("nota", "una faccia riempiva l'inquadratura, l'ho ritrovata rimpicciolendo la foto") : "";
   return '<div class="passo">' +
@@ -755,11 +754,13 @@ function schedaMrz(r) {
   }
   const campi = campiModificabili(r);
   const v = r.validita || {};
+  // **Si dice solo quando il documento e' scaduto.** Quello e' un problema suo,
+  // e deve saperlo. Che sia valido lo vede dal campo della scadenza, e sapere
+  // per quanti giorni ancora non gli serve a niente: e' un conto che riguarda
+  // noi, e sta nel registro.
   const quandoScade = v.scaduto === true
     ? '<div class="avviso">Scaduto il ' + v.scade_il + ", " + Math.abs(v.giorni) + " giorni fa.</div>"
-    : (v.scaduto === false
-      ? '<div class="avviso">Valido fino al ' + v.scade_il + ", cio&egrave; altri " + v.giorni + " giorni.</div>"
-      : '<div class="avviso">La scadenza non si giudica: ' + (v.motivo || "non si legge") + ".</div>");
+    : "";
   const avvertenza = r.affidabile
     ? '<div class="avviso">Guardali lo stesso, poi conferma.</div>'
     : '<div class="avviso">I campi col bordo rosso li ho letti male. Correggili, poi conferma.</div>';

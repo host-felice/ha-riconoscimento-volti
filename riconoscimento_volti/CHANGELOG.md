@@ -3,6 +3,23 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.32.0
+
+Due avvisi in meno davanti all'ospite. Tutti e due dicevano cose vere che pero'
+non lo riguardano, e ogni riga che legge senza doverci fare niente e' una riga
+che si mette fra lui e quello che deve controllare.
+
+- **Della scadenza si dice solo che e' scaduto.** Prima diceva anche "valido fino
+  al tale giorno, cioe' altri 2.452 giorni". Che sia valido lo vede dal campo
+  della scadenza che ha davanti, e quanti giorni gli restino non gli serve a
+  niente: e' un conto che riguarda noi, e sta nel registro. Sparisce anche "la
+  scadenza non si giudica", che dalla 0.31.0 e' un caso che non si presenta piu':
+  una banda letta male adesso si rifa'.
+- **Via l'avviso sulle facce in piu' trovate sul documento.** Sui documenti c'e'
+  stampata un'immagine fantasma contro le falsificazioni, quindi trovarne piu'
+  d'una e' normale e non c'e' niente da fare. Resta nel registro, dove serve a
+  noi.
+
 ## 0.31.0
 
 - **Una lettura con troppe cifre di controllo sbagliate si rifa', non si
