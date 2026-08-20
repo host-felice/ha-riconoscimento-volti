@@ -3,6 +3,16 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.36.0
+
+- **Il comune di emissione compare solo quando si e' letto.** Lo scrive la
+  patente, nel campo 4c, e li' serve. Sul passaporto e sulla carta d'identita' la
+  banda ottica il luogo di rilascio non lo da', quindi restava una casella vuota
+  da riempire a mano, che e' proprio quello che si e' tolto nella 0.35.0 per il
+  sesso e il comune di nascita. Sui documenti letti dalla banda non compariva
+  gia': il caso che restava era quello della banda che non si legge e si passa ai
+  campi a mano.
+
 ## 0.35.0
 
 Quattro cose viste provando il flusso intero, l'ultima e' un guasto.

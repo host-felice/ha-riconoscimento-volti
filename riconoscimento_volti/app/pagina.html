@@ -716,8 +716,13 @@ function datiAMano(fallita) {
   // cifra di controllo dietro, a differenza di quelli della banda ottica.
   const proposti = (fallita && fallita.campi_proposti) || {};
   const campi = {};
-  for (const chiave of DA_MOSTRARE)
+  for (const chiave of DA_MOSTRARE) {
+    // Il comune di emissione lo scrive solo la patente, nel campo 4c. Sugli
+    // altri documenti non c'e' niente da cui leggerlo, quindi comparirebbe
+    // vuoto e toccherebbe all'ospite: si mostra solo quando si e' letto.
+    if (chiave === "comune_emissione" && !proposti[chiave]) continue;
     campi[chiave] = proposti[chiave] || { valore: "" };
+  }
   campi.tipo_documento = { valore: NOME_DEL_TIPO[tipo] || "" };
   return { campi: campi, a_mano: true, sigla_documento: "senza-mrz",
            quanti_proposti: Object.keys(proposti).length,
