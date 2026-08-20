@@ -61,6 +61,21 @@ def ripulita(chiamata, dati):
     return riga
 
 
+def azzera():
+    """Butta il quaderno e ricomincia da zero. Torna quante righe c'erano.
+
+    Serve prima di mandare il banco di prova in giro: le righe di casa sono
+    quasi tutte della stessa faccia, e mescolate a quelle degli altri sballano
+    le somme senza aggiungere niente. Il file non si svuota, si toglie: cosi'
+    se la cartella non e' scrivibile ce ne accorgiamo adesso e non alla prima
+    prova di uno sconosciuto.
+    """
+    quante = len(leggi())
+    if os.path.exists(FILE):
+        os.remove(FILE)
+    return quante
+
+
 def scrivi(chiamata, dati):
     return scrivi_riga(ripulita(chiamata, dati))
 

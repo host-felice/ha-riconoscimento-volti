@@ -3,6 +3,15 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.34.0
+
+- **Si puo' azzerare il quaderno delle prove.** Serve prima di mandare il banco
+  in giro: le righe fatte in casa sono quasi tutte della stessa faccia, e
+  mescolate a quelle degli altri sballano le somme senza aggiungere niente. Il
+  file non si svuota, si toglie, cosi' se la cartella non fosse scrivibile ce ne
+  accorgiamo subito e non alla prima prova di uno sconosciuto. Solo in POST, che
+  non si fa per sbaglio.
+
 ## 0.33.0
 
 - **Il verdetto sulla lettura e' del documento, non della singola fotografia.**

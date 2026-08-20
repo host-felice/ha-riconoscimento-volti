@@ -26,7 +26,7 @@ import ottico
 import registro
 import volti
 
-VERSIONE = "0.33.0"
+VERSIONE = "0.34.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 # **"modello" non e' piu' un'opzione del pannello**, e non lo sara' nemmeno dopo.
@@ -618,6 +618,14 @@ def prove():
     quante = None if request.args.get("tutte") else 50
     return jsonify({"somme": registro.somme(), "invio": invio.stato(),
                     "ultime": registro.leggi(quante)})
+
+
+@app.route("/azzera", methods=["POST"])
+def azzera():
+    """Svuota il quaderno delle prove. Solo in POST, che non si fa per sbaglio."""
+    quante = registro.azzera()
+    log.info("quaderno azzerato, erano %d righe", quante)
+    return jsonify({"buttate": quante})
 
 
 @app.route("/salute", methods=["GET"])
