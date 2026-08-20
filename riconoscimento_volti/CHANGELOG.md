@@ -18,6 +18,12 @@ sapere cosa si sta installando senza andare a leggere il codice.
   che non esiste piu' continua a scrivere quello, altrimenti ogni host dovrebbe
   mettersi a cercare come si chiama adesso.
 
+  *Confermato anche guardando il portale a mano, lo stesso giorno: nel menu' un
+  comune soppresso compare **sbarrato ma selezionabile**, con sotto quello che ha
+  preso il suo posto. La barratura dice "questo non esiste piu'", non "non
+  usarlo": se fosse un divieto non lo lascerebbe cliccare, e sta nell'elenco
+  proprio perche' chi ci e' nato ha quello scritto sul documento.*
+
 - **Ma i soppressi si cercano solo quando il documento stampa la provincia.**
   Senza, `ABBADIA CERRETO` somiglia ugualmente a due righe e non ci sarebbe modo
   di scegliere; e siccome i cinque omonimi (Castro, Livo, Peglio, Samone, San

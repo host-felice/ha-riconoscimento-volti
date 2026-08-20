@@ -86,6 +86,12 @@ assert comuni.cerca("ABBADIA CERRETO (MI)")["codice"] == "403015699"
 assert comuni.cerca("ABBADIA CERRETO (LO)")["codice"] == "403098001"
 # senza provincia si resta fra i vivi
 assert comuni.cerca("ABBADIA CERRETO")["provincia"] == "LO"
+# il caso guardato a mano nel portale della Questura il 20 agosto 2026: nel menu'
+# CALATAFIMI compare sbarrato ma si puo' scegliere, con sotto CALATAFIMI SEGESTA.
+# I due nomi convivono nella stessa provincia e non si devono confondere
+assert comuni.cerca("CALATAFIMI (TP)")["codice"] == "419081003"
+assert comuni.cerca("CALATAFIMI SEGESTA (TP)")["codice"] == "419081903"
+assert comuni.cerca("CALATAFIM (TP)")["codice"] == "419081003"
 # quello che non somiglia a niente non diventa un comune
 assert comuni.cerca("XQZWKJ") is None
 assert comuni.cerca("") is None
