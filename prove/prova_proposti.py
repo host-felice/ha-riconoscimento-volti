@@ -14,15 +14,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "..", "riconoscimento_volti", "app"))
 import ottico
 
-# --- la patente vera letta il 20 agosto 2026 --------------------------------
-# Le righe sono quelle uscite davvero: l'anno di nascita a due cifre, e la data
-# di rilascio appiccicata al campo che segue, che infatti non deve risultare.
-vera = ["PATENTE DI GUIDA", "ROSSI", "MARIO", "3. 01.03.80 MESSINA (ME)",
-        "4a. 21.07.20164c.MIT-UCO", "4b. 01.03.2030", "5. TE1234567X"]
-r = ottico.proponi(vera)
-assert r["data_nascita"] == {"valore": "01/03/1980"}, r
-assert r["scadenza"] == {"valore": "01/03/2030"}, r
-
 # --- l'anno intero funziona uguale -------------------------------------------
 r = ottico.proponi(["01.03.1980", "21.07.2016", "01.03.2030"])
 assert r["data_nascita"]["valore"] == "01/03/1980", r
@@ -45,15 +36,19 @@ assert ottico.proponi(["01.03.80", "01.03.2030", "03.09.80", "03.09.2030"]) == {
 assert ottico.proponi(["LUOGOFDATADENASOTA", "1234567890", "TE1234567X"]) == {}
 assert ottico.proponi([]) == {}
 
-# --- i campi numerati della patente ------------------------------------------
+# --- le varianti che la patente vera non copre -------------------------------
 # "se tagli 1. 2. 3. 4a. 4b. 5. e ignori 7. e 9., riconosce tutto bene", detto
-# da Felice il 20 agosto 2026 guardando cosa era uscito davvero.
+# da Felice il 20 agosto 2026. Qui i separatori sono punti invece di barre e il
+# numero del campo e' maiuscolo, `4C`: due cose che la lettura vera non ha
+# prodotto ma che possono uscire.
 patente = ["PATENTEDIGUIDA", "1.ROSSI", "2.MARIO", "3.01.03.80", "MESSINA(ME)",
            "4a.21.07.2016", "4C.MIT-UCO", "4b.01.03.2030", "5.U1A000000B", "9.B"]
 r = ottico.dalla_patente(patente)
 assert r["cognome"] == {"valore": "ROSSI"}, r
 assert r["nome"]["valore"] == "MARIO", r
 assert r["numero_documento"]["valore"] == "U1A000000B", r
+assert r["comune_nascita"]["valore"] == "MESSINA (ME)", r
+assert r["comune_emissione"]["valore"] == "ROMA (RM)", r
 
 # --- la data non si spaccia per un campo -------------------------------------
 # Dentro `21.07.2016` c'e' un `2.`, e senza rete diventerebbe il nome.
@@ -64,9 +59,6 @@ assert r["cognome"]["valore"] == "ROSSI", r
 # --- quello che non ha la forma giusta resta vuoto ---------------------------
 assert ottico.dalla_patente(["1. 12345", "2. ---", "5. AB"]) == {}
 assert ottico.dalla_patente([]) == {}
-
-print("la nascita e la scadenza si riconoscono dal giorno e mese che hanno in comune,")
-print("e cognome, nome e numero del documento dal numero del loro campo")
 
 # --- il comune si prende dall'elenco, non da come lo ha letto la macchina ----
 import comuni
@@ -104,8 +96,6 @@ assert r["comune_emissione"]["valore"] == "ROMA (RM)", r
 r = ottico.dalla_patente(["3. 12.03.90 TERAMO (TE)", "4c. MC-TERAMO"])
 assert r["comune_emissione"]["valore"] == "TERAMO (TE)", r
 
-print("i comuni si leggono dall'elenco della Polizia, con due caratteri di tolleranza")
-
 # --- i luoghi presi dall'etichetta stampata ---------------------------------
 # Righe ricalcate su una carta d'identita' e un passaporto veri, guardati il
 # 20 agosto 2026. L'etichetta esce sfilacciata ma la parola intera sopravvive.
@@ -140,15 +130,6 @@ assert ottico.dalle_etichette(passaporto)["comune_nascita"]["valore"] == "MESSIN
 assert ottico.dalle_etichette(["CARTA DIIDENTITA", "TERAMO"]) == {}
 assert ottico.dalle_etichette([]) == {}
 
-print("i luoghi si trovano dall'etichetta che li annuncia, anche sfilacciata")
-
-# --- la patente come esce davvero dalla lettura ------------------------------
-r = ottico.dalla_patente(patente)
-# il comune di nascita va a capo rispetto al numero del campo e alla data
-assert r["comune_nascita"]["valore"] == "MESSINA (ME)", r
-# e il numero del campo puo' avere la lettera maiuscola: 4C vale come 4c
-assert r["comune_emissione"]["valore"] == "ROMA (RM)", r
-
 # --- e queste sono le righe uscite dalla patente vera, il 20 agosto 2026 -----
 # Il campo 5 va a capo prima del numero, il 4c resta attaccato alla data del 4a,
 # e le date usano la barra invece del punto. Sette campi su sette.
@@ -162,9 +143,6 @@ atteso = {"cognome": "ROSSI", "nome": "MARIO", "data_nascita": "01/03/1980",
 for chiave, valore in atteso.items():
     assert r.get(chiave, {}).get("valore") == valore, (chiave, r.get(chiave))
 
-print("la patente si legge anche senza spazi e con i numeri di campo maiuscoli,")
-print("e sulla patente vera escono sette campi su sette")
-
 # --- regole piu' lasche, ognuna da un caso che era fallito -------------------
 # il numero del documento puo' uscire minuscolo, e si rimette maiuscolo
 assert ottico.dalla_patente(["5. u1a000000b", "9.B"])["numero_documento"]["valore"] == "U1A000000B"
@@ -176,8 +154,6 @@ assert ottico._comune_nel_pezzo("257TERAMO(TE")["nome"] == "TERAMO"
 assert comuni.cerca("(TERAMO)")["nome"] == "TERAMO"
 # e il mese scritto a lettere non e' una data
 assert ottico.proponi(["01MAR/MAR1980", "18GIU/JUN2029"]) == {}
-
-print("le regole lasche reggono, e i casi di guardia non si rompono")
 
 # --- la parentesi larga vale come quella normale, in ogni combinazione -------
 # Letto davvero il 20 agosto 2026 su carta d'identita' e patente: la lettura,
@@ -197,4 +173,5 @@ assert ottico.dalle_etichette(
     ["LUOGOEDATADINASCITA", "PLACEANDDATEOFBIRTH", "MESSINA（ME)01.03.1980"]
 )["comune_nascita"]["valore"] == "MESSINA (ME)"
 
-print("la parentesi larga vale come quella normale, anche mescolata")
+print("il testo stampato diventa campi: date dal giorno e mese in comune, campi"
+      " numerati sulla patente, luoghi dall'etichetta, comuni dall'elenco")
