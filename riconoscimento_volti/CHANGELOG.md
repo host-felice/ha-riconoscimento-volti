@@ -3,6 +3,30 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.37.0
+
+**Una tabella sola al posto di tre rattoppi.** A furia di togliere un campo alla
+volta l'elenco era diventato illeggibile e in parte sbagliato. Adesso in cima al
+codice c'e' scritto, in tre righe, cosa sa dire ogni documento:
+
+```
+campo                  patente        carta          passaporto
+sesso                  non c'e'       banda ottica   banda ottica
+comune di emissione    testo (4c)     testo stampato non c'e'
+```
+
+- **Il sesso torna su carta d'identita' e passaporto**, dove la banda ottica lo
+  scrive. Era stato tolto guardando la patente, che non ce l'ha, e la 0.35.0 lo
+  aveva tolto anche dove invece si legge benissimo.
+- **Il comune di emissione resta su patente e carta d'identita'** e sparisce dal
+  passaporto.
+- Il comune di **nascita** resta fuori da tutti e tre: la banda ottica non ce
+  l'ha, e finche' si misura la lettura non serve farlo battere a macchina.
+
+Il criterio dietro la tabella, che prima non era scritto da nessuna parte: **una
+casella vuota che nessuno puo' riempire guardando il documento non e' un campo,
+e' un compito a casa.**
+
 ## 0.36.0
 
 - **Il comune di emissione compare solo quando si e' letto.** Lo scrive la

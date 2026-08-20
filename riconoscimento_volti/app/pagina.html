@@ -688,20 +688,29 @@ const NOMI_CAMPI = {
   comune_emissione: "comune di emissione"
 };
 
-// **Solo i campi che servono a chi prova adesso.** La banda ottica ne legge
-// altri quattro (cittadinanza, stato di rilascio, numero di supporto, numero
-// personale) e continua a leggerli: qui non si mostrano. Gli ultimi due non
-// vogliono dire niente per chi ha il documento in mano, e i primi due sono
-// italiani per definizione finche' si prova con italiani. La cittadinanza
-// tornera' quando sara' un menu' che si completa da solo.
-// **Solo quello che si legge dal documento.** Sesso e comune di nascita sono
-// usciti: il primo la patente non lo scrive, il secondo la banda ottica non ce
-// l'ha, quindi su meta' dei documenti restavano due caselle vuote da battere a
-// macchina. Il banco di prova misura la lettura, non raccoglie anagrafiche: chi
-// prova non deve compilare niente che il documento non dica.
-const DA_MOSTRARE = ["tipo_documento", "cognome", "nome",
-                     "data_nascita", "numero_documento", "scadenza",
-                     "comune_emissione"];
+// **Ogni documento dice cose diverse, e si chiede solo quello che dice.** Una
+// casella vuota che nessuno puo' riempire guardando il documento non e' un
+// campo, e' un compito a casa: il banco misura la lettura, non raccoglie
+// anagrafiche.
+//
+//   campo                  patente        carta          passaporto
+//   sesso                  non c'e'       banda ottica   banda ottica
+//   comune di emissione    testo (4c)     testo stampato non c'e'
+//
+// Il comune di **nascita** e' fuori da tutti e tre: la banda ottica non ce l'ha,
+// e finche' si misura la lettura non serve a niente farlo battere a macchina.
+// Restano fuori anche cittadinanza, stato di rilascio, numero di supporto e
+// numero personale: la banda ottica continua a leggerli, ma i primi due sono
+// italiani per definizione finche' si prova fra italiani, e gli ultimi due non
+// vogliono dire niente per chi ha il documento in mano.
+const ORDINE = ["tipo_documento", "cognome", "nome", "sesso", "data_nascita",
+                "numero_documento", "scadenza", "comune_emissione"];
+const SOLO_SU = { sesso: ["carta", "passaporto"],
+                  comune_emissione: ["patente", "carta"] };
+
+function daMostrare() {
+  return ORDINE.filter(c => !SOLO_SU[c] || SOLO_SU[c].includes(tipo));
+}
 
 
 // Il nome per esteso di quello che l'ospite ha dichiarato lui stesso. Non e'
@@ -716,13 +725,8 @@ function datiAMano(fallita) {
   // cifra di controllo dietro, a differenza di quelli della banda ottica.
   const proposti = (fallita && fallita.campi_proposti) || {};
   const campi = {};
-  for (const chiave of DA_MOSTRARE) {
-    // Il comune di emissione lo scrive solo la patente, nel campo 4c. Sugli
-    // altri documenti non c'e' niente da cui leggerlo, quindi comparirebbe
-    // vuoto e toccherebbe all'ospite: si mostra solo quando si e' letto.
-    if (chiave === "comune_emissione" && !proposti[chiave]) continue;
+  for (const chiave of daMostrare())
     campi[chiave] = proposti[chiave] || { valore: "" };
-  }
   campi.tipo_documento = { valore: NOME_DEL_TIPO[tipo] || "" };
   return { campi: campi, a_mano: true, sigla_documento: "senza-mrz",
            quanti_proposti: Object.keys(proposti).length,
@@ -743,7 +747,7 @@ function testoStampato(r) {
 
 function campiModificabili(r) {
   let campi = "";
-  for (const chiave of DA_MOSTRARE) {
+  for (const chiave of daMostrare()) {
     const c = r.campi[chiave];
     if (!c) continue;
     campi += '<div class="campo' + (c.verificato === false ? " storto" : "") + '">' +
