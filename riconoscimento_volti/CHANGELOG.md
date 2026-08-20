@@ -3,6 +3,22 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.19.2
+
+Due cose sull'aggiornamento stesso, viste guardando perche' la 0.19.1 ci aveva
+messo tre minuti e diciassette su Teramo.
+
+- **I modelli si scaricano prima delle librerie, non dopo.** Docker rifa' tutto
+  quello che viene dopo la prima riga cambiata: con i modelli sotto, aggiungere
+  una libreria buttava via anche i 166 MB di buffalo_l e li riscaricava. Erano
+  quasi tutti li' i tre minuti, non nel motore nuovo. **Questo aggiornamento e'
+  ancora lento**, perche' l'ordine cambia adesso; dal prossimo in poi un cambio
+  di libreria non tocca piu' i modelli.
+- **L'add-on si ferma quando glielo si chiede.** Dentro il contenitore questo
+  processo e' il numero uno, e il numero uno ignora di suo la richiesta di
+  fermarsi: il Supervisor aspettava dieci secondi, poi lo ammazzava e scriveva
+  `exit code 137` nel log. Succedeva a ogni aggiornamento.
+
 ## 0.19.1
 
 Giro di potatura sulla versione precedente, piu' una cosa che era decisa e non

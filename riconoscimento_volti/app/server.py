@@ -10,6 +10,7 @@ import hmac
 import json
 import logging
 import os
+import signal
 import threading
 import time
 
@@ -24,7 +25,7 @@ import mrz
 import registro
 import volti
 
-VERSIONE = "0.19.1"
+VERSIONE = "0.19.2"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 PREDEFINITE = {"modello": "buffalo_l", "invio_prove": "", "lettura_ottica": True,
@@ -1017,8 +1018,26 @@ def corretti():
     })})
 
 
+def _fermati(*_):
+    """Quando ci dicono di chiudere, si chiude subito.
+
+    Dentro il contenitore questo processo e' il numero uno, e il numero uno
+    ignora di suo la richiesta di fermarsi: senza questa riga il Supervisor
+    aspetta dieci secondi, poi ammazza il processo e scrive un errore nel log.
+    Succedeva a **ogni** aggiornamento, ed erano dieci secondi e un errore rosso
+    ogni volta.
+
+    Si esce di netto invece che per la via ordinata perche' non c'e' niente da
+    chiudere: il quaderno delle prove si apre e si chiude a ogni riga, i modelli
+    sono in memoria e la memoria la riprende il sistema.
+    """
+    log.info("mi hanno chiesto di fermarmi, chiudo")
+    os._exit(0)
+
+
 if __name__ == "__main__":
     porta = int(os.environ.get("PORTA", 8099))
+    signal.signal(signal.SIGTERM, _fermati)
     threading.Thread(target=_guardiano, daemon=True).start()
     log.info("in ascolto sulla porta %d, soglia %.2f, memoria %s MB",
              porta, float(OPZIONI["soglia"]), _memoria_mb())

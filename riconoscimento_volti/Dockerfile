@@ -12,15 +12,11 @@ RUN apt-get update \
        libglib2.0-0 libturbojpeg0 curl unzip ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt /tmp/requirements.txt
-
-# Il lettore della MRZ pretende opencv-python, quello con l'interfaccia grafica,
-# che dentro un contenitore senza schermo non si carica affatto. Si toglie e si
-# rimette quello senza: e' lo stesso cv2, meno le finestre.
-RUN pip3 install --no-cache-dir -r /tmp/requirements.txt \
-    && pip3 uninstall -y opencv-python \
-    && pip3 install --no-cache-dir --force-reinstall opencv-python-headless==4.12.0.88
-
+# **I modelli stanno prima delle librerie, e l'ordine e' il punto.** Docker
+# rifa' tutto quello che viene dopo la prima riga cambiata: con i modelli sotto,
+# aggiungere una libreria buttava via anche i 166 MB di buffalo_l e li
+# riscaricava. Misurato il 20 agosto 2026 su Teramo: tre minuti e diciassette
+# per un aggiornamento che di suo non toccava nessun modello.
 # I modelli, scaricati una volta sola qui e non a ogni avvio.
 # YuNet trova le facce (227 KB), ArcFace le trasforma in numeri (166 MB),
 # MiniFASNet dice se davanti all'obiettivo c'era una persona (1,7 MB).
@@ -38,6 +34,15 @@ RUN mkdir -p /modelli \
     && unzip -j -o /tmp/buffalo_l.zip w600k_r50.onnx -d /modelli \
     && rm -f /tmp/buffalo_l.zip \
     && apt-get purge -y curl unzip && apt-get autoremove -y
+
+COPY requirements.txt /tmp/requirements.txt
+
+# Il lettore della MRZ pretende opencv-python, quello con l'interfaccia grafica,
+# che dentro un contenitore senza schermo non si carica affatto. Si toglie e si
+# rimette quello senza: e' lo stesso cv2, meno le finestre.
+RUN pip3 install --no-cache-dir -r /tmp/requirements.txt \
+    && pip3 uninstall -y opencv-python \
+    && pip3 install --no-cache-dir --force-reinstall opencv-python-headless==4.12.0.88
 
 # Anche i modelli della MRZ una volta sola qui: si scaricano da Google Drive,
 # e un add-on che parte non deve dipendere da quel viaggio.
