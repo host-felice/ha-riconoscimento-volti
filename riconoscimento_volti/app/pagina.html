@@ -380,9 +380,9 @@ function leggiSubito(chiave, blob) {
   codaLetture = codaLetture.then(() => chiama("mrz", modulo));
   letture[chiave] = codaLetture;
   inLettura++;
-  codaLetture.then(() => { inLettura--; aggiornaLettura(); });
+  codaLetture.then(() => { inLettura--; });
   aggiornaLettura();
-  letture[chiave].then(esito => { aggiornaLettura(); giudicaLettura(esito); });
+  letture[chiave].then(esito => { esitiLettura[chiave] = esito; forseGiudica(); });
 }
 
 // Quante volte si e' gia' provato a leggere. **Due, mai tre**, come per il
@@ -394,13 +394,29 @@ let tentativiLettura = 0;
 // quelli l'ospite li puo' scrivere. E' che una fotografia troppo scarsa per
 // essere letta di solito e' troppo scarsa anche per il confronto del viso, e
 // quello si scopre in fondo, quando rifare la foto vuol dire rifare tutto.
-function giudicaLettura(esito) {
+// Gli esiti man mano che tornano, uno per fotografia.
+const esitiLettura = {};
+
+function forseGiudica() {
+  aggiornaLettura();
+  // **Il verdetto e' del documento, non della singola fotografia.** Il fronte
+  // della carta d'identita' la banda ottica non ce l'ha, quindi la sua lettura
+  // "fallisce" sempre: giudicando foto per foto usciva "non riesco a leggere il
+  // documento, rifai la foto" mentre il retro stava ancora leggendo, e un attimo
+  // dopo i dati comparivano lo stesso. Si aspetta che ci siano tutte e che
+  // nessuna sia ancora in corso.
+  if (inLettura || !foto.documento || (tipo === "carta" && !foto.retro)) return;
+  giudicaLettura(Object.values(esitiLettura));
+}
+
+function giudicaLettura(esiti) {
   const dove = document.getElementById("esito_lettura");
-  const niente = tipo === "patente"
+  // Basta che **una** delle fotografie abbia dato qualcosa.
+  const niente = !esiti.some(esito => tipo === "patente"
     // Sulla patente la banda ottica manca per costruzione: non e' un guasto.
     // Quello che dice se la foto vale e' il testo stampato.
-    ? !(esito && esito.testo_stampato && esito.testo_stampato.length)
-    : !!(esito && esito.errore);
+    ? (esito && esito.testo_stampato && esito.testo_stampato.length)
+    : (esito && !esito.errore));
   if (!niente) {
     dove.style.display = "none";
     return;

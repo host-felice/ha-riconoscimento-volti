@@ -3,6 +3,21 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.33.0
+
+- **Il verdetto sulla lettura e' del documento, non della singola fotografia.**
+  Sulla carta d'identita' usciva "non riesco a leggere il documento, rifai la
+  foto" e un attimo dopo i dati comparivano lo stesso, senza problemi. Il motivo:
+  **il fronte della carta la banda ottica non ce l'ha** (sta dietro), quindi la
+  sua lettura fallisce sempre, ed era quella a far scattare il verdetto mentre il
+  retro stava ancora leggendo. Adesso si aspetta che le fotografie ci siano tutte
+  e che nessuna lettura sia ancora in corso, e basta che **una** abbia dato
+  qualcosa perche' vada bene.
+
+  Il fronte si continua a leggere lo stesso, e non e' uno spreco: e' li' che
+  stanno il comune di nascita e il luogo di rilascio, cioe' i campi che alla
+  banda ottica mancano.
+
 ## 0.32.0
 
 Due avvisi in meno davanti all'ospite. Tutti e due dicevano cose vere che pero'
