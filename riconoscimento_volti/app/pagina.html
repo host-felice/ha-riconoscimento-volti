@@ -157,6 +157,8 @@
   <img class="anteprima" id="ant_selfie" alt="">
 </div>
 
+<p class="nota" id="sto_leggendo"></p>
+
 <div class="passo" id="passo_consenso">
   <h2>Posso tenere il risultato di questa prova?</h2>
   <p>Partono solo numeri: quanto ha fatto il confronto, quanto era grande il
@@ -346,6 +348,45 @@ function spegni(chiave) {
   mirino.style.display = "none";
 }
 
+// Le letture in corso, una per fotografia del documento.
+let letture = {};
+
+// **La lettura parte appena arriva la fotografia, non quando si preme
+// Controlla**, ed e' la ragione per cui su un N4000 si puo' tenere accesa.
+// Misurato il 20 agosto 2026: la banda ottica costa 5,5 secondi su quel ferro e
+// il testo stampato altri 8, cioe' una ventina a persona per una carta
+// d'identita'. Aspettati alla fine sarebbero venti secondi di clessidra; partiti
+// adesso finiscono mentre l'ospite si fa il selfie, che di suo ne costa fra
+// venti e trenta. Il lavoro non deve stare sulla strada dell'ospite.
+//
+// Le fotografie si leggono **una per volta**: un N4000 ha due core, e due
+// letture insieme non vanno a meta' tempo, si ostacolano.
+let codaLetture = Promise.resolve();
+
+function leggiSubito(chiave, blob) {
+  const modulo = new FormData();
+  modulo.append("immagine", blob, chiave + ".jpg");
+  modulo.append("consenso_invio", consenso === "si" ? "si" : "no");
+  modulo.append("tipo_dichiarato", tipo || "");
+  // Il fronte della carta la banda ottica non ce l'ha: si legge lo stesso,
+  // perche' e' li' che stanno il comune di nascita e il luogo di rilascio, cioe'
+  // i campi che alla banda mancano. E la patente non ha banda affatto: il testo
+  // stampato e' l'unica strada, non un ripiego.
+  letture[chiave] = codaLetture = codaLetture.then(() => chiama("mrz", modulo));
+  aggiornaLettura();
+  letture[chiave].then(aggiornaLettura);
+}
+
+function aggiornaLettura() {
+  const dove = document.getElementById("sto_leggendo");
+  const quante = Object.keys(letture).length;
+  dove.textContent = quante
+    ? "Sto leggendo il documento mentre tu vai avanti: " + quante
+      + (quante === 1 ? " fotografia" : " fotografie") + " in lettura. "
+      + "Su una macchina lenta ci mette una ventina di secondi, e non devi aspettarla."
+    : "";
+}
+
 function scatta(chiave) {
   const video = document.getElementById("mirino_" + chiave).querySelector("video");
   const w = video.videoWidth, h = video.videoHeight;
@@ -359,6 +400,7 @@ function scatta(chiave) {
     foto[chiave] = b;
     const ant = document.getElementById("ant_" + chiave);
     ant.src = tela.toDataURL("image/jpeg", 0.5); ant.style.display = "block";
+    if (chiave !== "selfie") leggiSubito(chiave, b);
     controllaPronto();
   }, "image/jpeg", 0.88);
 }
@@ -387,9 +429,6 @@ document.getElementById("vai").addEventListener("click", async () => {
   const perVolto = new FormData();
   perVolto.append("documento", foto.documento, "documento.jpg");
   perVolto.append("selfie", foto.selfie, "selfie.jpg");
-  const perMrz = new FormData();
-  perMrz.append("immagine", tipo === "carta" ? foto.retro : foto.documento, "mrz.jpg");
-  perMrz.append("consenso_invio", consenso === "si" ? "si" : "no");
 
   // Qui si sta misurando, quindi si chiedono i punteggi di tutti e due i
   // modelli sulla stessa faccia: e' l'unico confronto che vuol dire qualcosa.
@@ -400,15 +439,11 @@ document.getElementById("vai").addEventListener("click", async () => {
   // fra persone diverse, e la distanza fra i due mondi non si calcola piu'.
   perVolto.append("stessa_persona", "si");
   perVolto.append("consenso_invio", consenso === "si" ? "si" : "no");
-  // **Prima il documento, poi i volti**, e non piu' i due insieme. Un documento
-  // scaduto non e' un documento di identificazione, quindi il confronto non si
-  // deve fare affatto: non e' solo tempo sprecato, e' un volto elaborato per
-  // niente. Costa i secondi della lettura prima del confronto, e li vale.
-  // Un documento senza le righe di caratteri non si legge affatto: non c'e'
-  // niente da chiamare, e i campi partono vuoti da riempire a mano. E' la
-  // strada di scampo gia' decisa, e finche' non si poteva scegliere la patente
-  // non c'era modo di provarla.
-  const dati = tipo === "patente" ? datiAMano() : await chiama("mrz", perMrz);
+  // **Qui non si comincia a leggere: si aspetta la lettura partita allo scatto.**
+  // Se l'ospite e' stato piu' veloce del previsto aspetta qui, e glielo si dice
+  // invece di lasciare la pagina ferma: una cosa che lavora e non parla sembra
+  // rotta.
+  const dati = await aspettaLaLettura();
   const scadenza = (dati && dati.validita) || {};
   if (scadenza.scaduto === true) {
     mostra(schedaMrz(dati) + ilDocumentoEScaduto(scadenza));
@@ -436,6 +471,26 @@ document.getElementById("vai").addEventListener("click", async () => {
   bottone.disabled = false;
   controllaPronto();
 });
+
+// Le due fotografie della carta d'identita' portano cose diverse: il retro ha
+// la banda ottica, il fronte ha il comune di nascita e il luogo di rilascio
+// stampati. Quella che ha letto la banda fa da scheda; il testo stampato si
+// somma da tutte e due.
+async function aspettaLaLettura() {
+  const chiavi = Object.keys(letture);
+  if (!chiavi.length) return datiAMano();
+  document.getElementById("sto_leggendo").textContent =
+    "Aspetto che la lettura del documento finisca, ci siamo quasi.";
+  const esiti = await Promise.all(chiavi.map(c => letture[c]));
+  letture = {};
+  aggiornaLettura();
+  const testo = [];
+  for (const e of esiti) if (e && e.testo_stampato) testo.push(...e.testo_stampato);
+  const conBanda = esiti.find(e => e && !e.errore && e.campi);
+  const dati = conBanda || datiAMano(esiti.find(e => e && e.errore));
+  dati.testo_stampato = testo;
+  return dati;
+}
 
 function ilDocumentoEScaduto(scadenza) {
   // Non e' un confronto fallito e non conta come tentativo: e' un documento che
@@ -521,7 +576,10 @@ async function chiama(dove, corpo) {
       method: "POST", body: corpo, headers: parola ? { "X-Parola": parola } : {}
     });
     const r = await risposta.json();
-    return risposta.ok ? r : { errore: r.errore };
+    // Sull'errore si tiene **tutto il corpo**, non solo il messaggio: quando la
+    // banda ottica non si legge, la risposta porta lo stesso il testo stampato,
+    // ed e' proprio il caso in cui quel testo e' tutto quello che resta.
+    return risposta.ok ? r : Object.assign({}, r, { errore: r.errore || "non ha funzionato" });
   } catch (e) {
     return { errore: "non sono riuscito a parlare con il server: " + e.message };
   }
@@ -585,10 +643,19 @@ const DA_MOSTRARE = ["tipo_documento", "cognome", "nome", "sesso", "data_nascita
                      "numero_documento", "numero_supporto", "numero_personale",
                      "scadenza", "stato_emissione"];
 
-function datiAMano() {
+function datiAMano(fallita) {
   const campi = {};
   for (const chiave of DA_MOSTRARE) campi[chiave] = { valore: "" };
-  return { campi: campi, a_mano: true, sigla_documento: "senza-mrz" };
+  return { campi: campi, a_mano: true, sigla_documento: "senza-mrz",
+           perche: fallita && fallita.errore };
+}
+
+function testoStampato(r) {
+  if (!r.testo_stampato || !r.testo_stampato.length) return "";
+  const pre = document.createElement("pre");
+  pre.textContent = r.testo_stampato.join(String.fromCharCode(10));
+  return '<details><summary>Il testo stampato che la macchina ha letto ('
+    + r.testo_stampato.length + " righe)</summary>" + pre.outerHTML + "</details>";
 }
 
 function campiModificabili(r) {
@@ -609,10 +676,13 @@ function campiModificabili(r) {
 function schedaMrz(r) {
   if (r.a_mano) {
     return '<div class="passo"><div class="verdetto no">Questo documento non si legge</div>' +
-      "<p>Non ha le due righe di caratteri, quindi non c&rsquo;&egrave; niente da leggere e "
-      + "<b>i dati si scrivono a mano</b>. Il confronto fra la fotografia del documento e il "
-      + "selfie invece &egrave; stato fatto lo stesso, ed &egrave; qui sopra.</p>" +
-      campiModificabili(r) +
+      "<p>La banda ottica non si &egrave; letta" + (r.perche ? " (" + r.perche + ")" : "")
+      + ", quindi i campi con la cifra di controllo non ci sono e <b>i dati si scrivono a "
+      + "mano</b>. Il testo stampato invece &egrave; stato letto lo stesso, qui sotto: "
+      + "&egrave; la strada per la patente e per i documenti fuori standard. Il confronto "
+      + "fra la fotografia del documento e il selfie &egrave; stato fatto ed &egrave; qui "
+      + "sopra.</p>" +
+      testoStampato(r) + campiModificabili(r) +
       '<button id="conferma">Sì, i dati sono giusti</button></div>';
   }
   if (r.errore) {
@@ -636,7 +706,17 @@ function schedaMrz(r) {
     "<p>" + r.tipo_documento + " (" + r.sigla_documento + "), formato " + r.formato +
       ", letto in " + r.millisecondi + " ms" +
       (r.seconda_passata ? ", al secondo tentativo" : "") + ". <b>Sono giusti?</b></p>" +
-    quandoScade + avvertenza + campi +
+    (r.tipo_letto_male
+      ? '<div class="avviso">Il tipo di documento era stato letto <b>' + r.tipo_letto_male
+        + "</b>, ed &egrave; sbagliato: quella lettera non ha nessuna cifra di controllo, "
+        + "quindi un errore l&igrave; passa inosservato. Raddrizzato con quello che hai "
+        + "dichiarato tu, che il formato della banda conferma.</div>"
+      : "") +
+    (r.il_formato_non_torna
+      ? '<div class="avviso">Attenzione: ' + r.il_formato_non_torna
+        + ". Hai dichiarato un documento e ne hai fotografato un altro.</div>"
+      : "") +
+    quandoScade + avvertenza + testoStampato(r) + campi +
     '<button id="conferma">Sì, i dati sono giusti</button>' +
     "<pre>" + r.righe.join("\n") + "</pre></div>";
 }

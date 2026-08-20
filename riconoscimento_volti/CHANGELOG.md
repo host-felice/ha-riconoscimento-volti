@@ -3,6 +3,43 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.19.0
+
+Il flusso deciso su #7 il 20 agosto 2026, costruito. Prima la pagina aspettava
+il tasto **Controlla** per cominciare a leggere il documento: su un N4000 sono
+una ventina di secondi di clessidra buttati in faccia all'ospite alla fine.
+
+- **La lettura parte appena arriva la fotografia**, non quando si preme
+  Controlla. Cosi' finisce mentre l'ospite si fa il selfie, che di suo costa fra
+  i venti e i trenta secondi. Al momento di inviare resta solo il confronto fra
+  il volto del documento e il selfie.
+- Le fotografie si leggono **una per volta**: un N4000 ha due core, e due
+  letture insieme non vanno a meta' tempo, si ostacolano.
+- La pagina dice **"sto leggendo"** mentre lavora, e se l'ospite e' piu' veloce
+  del previsto lo dice invece di restare ferma. Una cosa che lavora e non parla
+  sembra rotta.
+- **La lettura del testo stampato (RapidOCR, Apache 2.0), che non c'era.** La
+  banda ottica riempie sei campi su quattordici di Alloggiati Web; comune e
+  provincia di nascita e luogo di rilascio non ce li ha, e sono **stampati in
+  chiaro sulla stessa fotografia**. Adesso si leggono e si vedono. Trasformarli
+  nei codici della Polizia, cercandoli negli elenchi chiusi, e' il passo dopo.
+- Gira **nello stesso processo usa e getta della banda ottica**: stesso innesco,
+  stesso viaggio, e i suoi 370 MB se ne vanno quando quel processo muore.
+- **Si legge anche il fronte della carta, che la banda ottica non ce l'ha.** Non
+  e' uno spreco: e' il lato dove stanno il comune di nascita e il luogo di
+  rilascio.
+- **La patente si prova a leggere davvero.** Non ha la banda ottica, quindi
+  quella fallisce e i campi con la cifra di controllo non ci sono, ma il testo
+  stampato si legge lo stesso ed e' l'unica strada per quel documento. Nella
+  versione prima la patente saltava la lettura del tutto, che era sbagliato.
+- **Il tipo di documento letto male si raddrizza.** Su un passaporto vero la
+  banda ha letto `F` dove c'e' scritto `P`, e il documento e' diventato "non
+  riconosciuto": quella lettera non ha nessuna cifra di controllo, quindi
+  l'errore passa inosservato. Adesso si incrocia con quello che l'ospite ha
+  dichiarato prima di fotografare, e si corregge **solo** quando anche il
+  formato della banda conferma. Se dichiarato e fotografato non coincidono non
+  si raddrizza niente: si dice che non coincidono.
+
 ## 0.18.0
 
 - **La conferma dei dati era un gesto per finta.** I campi si potevano gia'

@@ -13,6 +13,8 @@ import multiprocessing
 import cv2
 import numpy as np
 
+import ottico
+
 PESI = (7, 3, 1)
 
 # Due misure: si prova alla prima, e solo se qualcosa non torna si rifa' con
@@ -321,19 +323,45 @@ def analizza(dati_binari):
     raise guaio or NessunaMRZ("nessuna zona leggibile a macchina trovata nella foto")
 
 
-def _in_disparte(scrivi_qui, dati_binari):
-    """Il lavoro visto da dentro il processo usa e getta: legge, risponde, muore."""
+def _in_disparte(scrivi_qui, dati_binari, anche_ottico):
+    """Il lavoro visto da dentro il processo usa e getta: legge, risponde, muore.
+
+    Le due letture stanno **qui dentro tutte e due**, e non e' per comodita': la
+    banda ottica si prende quasi un giga e il testo stampato altri 370 MB, e
+    l'unico punto in cui il sistema se li riprende con certezza e' la fine di un
+    processo. Stesso innesco, cioe' l'arrivo di una fotografia, quindi stesso
+    viaggio.
+
+    **Il testo stampato si legge anche quando la banda ottica non c'e'.** Un
+    documento senza banda, come la patente, non e' un documento su cui non c'e'
+    niente da leggere: e' quello su cui il testo stampato e' l'unica strada.
+    """
+    esito = guaio = None
     try:
-        scrivi_qui.send(("bene", analizza(dati_binari)))
-    except NessunaMRZ as guaio:
-        scrivi_qui.send(("nessuna", str(guaio)))
-    except Exception as guaio:
-        scrivi_qui.send(("assente", "la lettura del documento e' fallita: %s" % guaio))
+        esito = analizza(dati_binari)
+    except NessunaMRZ as questo:
+        guaio = ("nessuna", str(questo))
+    except Exception as questo:
+        guaio = ("assente", "la lettura del documento e' fallita: %s" % questo)
+    testo = []
+    if anche_ottico:
+        try:
+            testo = ottico.righe(dati_binari)
+        except Exception as questo:
+            # Non fa cadere niente: la banda ottica e' la lettura che conta, e
+            # il testo stampato e' quello che si aggiunge quando si puo'.
+            testo = ["(il testo stampato non si e' letto: %s)" % questo]
+    try:
+        if esito is not None:
+            esito["testo_stampato"] = testo
+            scrivi_qui.send(("bene", esito, testo))
+        else:
+            scrivi_qui.send((guaio[0], guaio[1], testo))
     finally:
         scrivi_qui.close()
 
 
-def analizza_altrove(dati_binari, secondi=SECONDI_DI_ATTESA):
+def analizza_altrove(dati_binari, secondi=SECONDI_DI_ATTESA, anche_ottico=False):
     """La stessa lettura, fatta da un processo che subito dopo muore.
 
     Il motore della MRZ si prende quasi un giga e non lo restituisce: non e' un
@@ -344,7 +372,8 @@ def analizza_altrove(dati_binari, secondi=SECONDI_DI_ATTESA):
     secondo, e che capita due volte a prenotazione, non si nota.
     """
     leggi_qui, scrivi_qui = _CONTESTO.Pipe(duplex=False)
-    figlio = _CONTESTO.Process(target=_in_disparte, args=(scrivi_qui, dati_binari),
+    figlio = _CONTESTO.Process(target=_in_disparte,
+                               args=(scrivi_qui, dati_binari, anche_ottico),
                                daemon=True)
     figlio.start()
     scrivi_qui.close()
@@ -352,7 +381,7 @@ def analizza_altrove(dati_binari, secondi=SECONDI_DI_ATTESA):
         if not leggi_qui.poll(secondi):
             raise NessunaMRZ("la lettura del documento ci ha messo troppo")
         try:
-            come, cosa = leggi_qui.recv()
+            come, cosa, testo = leggi_qui.recv()
         except EOFError:
             raise LettoreAssente("la lettura del documento si e' interrotta")
     finally:
@@ -365,6 +394,9 @@ def analizza_altrove(dati_binari, secondi=SECONDI_DI_ATTESA):
         figlio.close()
     if come == "bene":
         return cosa
-    if come == "nessuna":
-        raise NessunaMRZ(cosa)
-    raise LettoreAssente(cosa)
+    # Il testo stampato viaggia **anche sul fallimento**, appeso all'errore: e'
+    # esattamente il caso in cui serve di piu', perche' se la banda ottica non
+    # c'e' o non si legge quel testo e' tutto quello che resta.
+    guaio = NessunaMRZ(cosa) if come == "nessuna" else LettoreAssente(cosa)
+    guaio.testo_stampato = testo
+    raise guaio

@@ -24,7 +24,7 @@ import mrz
 import registro
 import volti
 
-VERSIONE = "0.18.0"
+VERSIONE = "0.19.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 PREDEFINITE = {"modello": "buffalo_l", "invio_prove": "", "soglia": 0.4, "soglia_sface": 0.363,
@@ -160,7 +160,11 @@ def _errore_modelli_diversi(e):
 
 @app.errorhandler(mrz.NessunaMRZ)
 def _errore_senza_mrz(e):
-    return jsonify({"errore": str(e)}), 422
+    # Il testo stampato viaggia anche qui: su un documento senza banda ottica,
+    # come la patente, la banda che manca non e' una lettura fallita, e' l'unica
+    # lettura possibile che diventa quella stampata.
+    return jsonify({"errore": str(e),
+                    "testo_stampato": getattr(e, "testo_stampato", [])}), 422
 
 
 @app.errorhandler(mrz.LettoreAssente)
@@ -921,6 +925,45 @@ def _detta_validita(validita):
     return "valido per altri %d giorni" % validita["giorni"]
 
 
+# Cosa deve dire la banda ottica quando l'ospite ha gia' dichiarato che
+# documento ha. Il formato e' la conferma indipendente: la lettera da sola si
+# puo' leggere male, il formato no, perche' viene dal numero e dalla lunghezza
+# delle righe.
+ATTESO_PER_TIPO = {"passaporto": ("TD3", "P"), "carta": ("TD1", "I")}
+
+
+def _raddrizza_il_tipo(esito, dichiarato):
+    """La lettera del tipo documento non ha nessuna cifra di controllo.
+
+    Quindi una `P` letta come `F` passa senza che niente si accorga, e il
+    documento diventa "non riconosciuto" con l'ospite che si vede scritta una
+    lettera sbagliata addosso. Successo davvero, su un passaporto vero, il 20
+    agosto 2026.
+
+    La correzione non e' un'ipotesi: l'ospite **ha gia' dichiarato** che
+    documento ha, prima ancora di fotografarlo, e il formato della banda lo
+    conferma per una strada indipendente dalla lettera. Quando quelle due cose
+    concordano fra loro e la lettera no, e' la lettera a essere sbagliata.
+    """
+    atteso = ATTESO_PER_TIPO.get(dichiarato or "")
+    if not atteso:
+        return esito
+    formato, lettera = atteso
+    if esito.get("formato") != formato:
+        # Dichiarato e fotografato non coincidono: qui non si raddrizza niente,
+        # si dice che non coincidono e decide chi guarda.
+        esito["il_formato_non_torna"] = "dichiarato %s, letto %s" % (dichiarato, esito.get("formato"))
+        return esito
+    campo = (esito.get("campi") or {}).get("tipo_documento") or {}
+    if str(campo.get("valore", ""))[:1] == lettera:
+        return esito
+    esito["tipo_letto_male"] = campo.get("valore")
+    campo["valore"] = lettera
+    esito["sigla_documento"] = lettera
+    esito["tipo_documento"] = mrz.TIPI.get(lettera, esito.get("tipo_documento"))
+    return esito
+
+
 @app.route("/mrz", methods=["POST"])
 def leggi_mrz():
     """Le righe di caratteri in fondo al documento, e cosa dicono.
@@ -929,7 +972,9 @@ def leggi_mrz():
     soli che si possono scrivere nel modulo senza farli ricontrollare a mano.
     """
     partenza = time.time()
-    esito = mrz.analizza_altrove(_immagine("immagine"))
+    esito = mrz.analizza_altrove(_immagine("immagine"),
+                                 anche_ottico=_si_o_no(_campo("anche_ottico")) is not False)
+    esito = _raddrizza_il_tipo(esito, _campo("tipo_dichiarato"))
     esito["millisecondi"] = _millisecondi(partenza)
     validita = esito.get("validita") or {}
     log.info("mrz: %s, seconda passata %s, campi da correggere %s, %s, memoria %s MB",
@@ -944,6 +989,8 @@ def leggi_mrz():
         "seconda_passata": esito.get("seconda_passata"),
         "affidabile": esito.get("affidabile"),
         "quanti_da_correggere": len(esito.get("da_correggere") or []),
+        "tipo_letto_male": bool(esito.get("tipo_letto_male")),
+        "righe_stampate": len(esito.get("testo_stampato") or []),
         "da_correggere": esito.get("da_correggere"),
         "scaduto": validita.get("scaduto"),
         "millisecondi": esito["millisecondi"],

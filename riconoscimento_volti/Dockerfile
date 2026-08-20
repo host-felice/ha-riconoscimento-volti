@@ -43,6 +43,11 @@ RUN mkdir -p /modelli \
 # e un add-on che parte non deve dipendere da quel viaggio.
 RUN python3 -c "from mrzscanner import MRZScanner; MRZScanner()"
 
+# La lettura del testo stampato porta i suoi modelli dentro il pacchetto, quindi
+# non scarica niente: questa riga serve a farlo scoprire **qui**, se un giorno
+# cambiasse, invece che a casa di un cliente il giorno del check-in.
+RUN python3 -c "from rapidocr_onnxruntime import RapidOCR; RapidOCR()"
+
 # Ogni thread di calcolo si tiene la sua area di memoria, e qui le richieste
 # sono poche: due bastano, e l'add-on occupa meno.
 ENV OMP_NUM_THREADS=2     OPENBLAS_NUM_THREADS=2     MKL_NUM_THREADS=2

@@ -5,3 +5,4 @@ waitress==3.0.2
 mrzscanner-docsaid==1.0.7
 PyTurboJPEG==1.7.7
 onnxruntime==1.29.0
+rapidocr-onnxruntime==1.2.3
