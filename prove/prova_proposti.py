@@ -79,9 +79,13 @@ assert comuni.cerca("CASTRO") is None
 assert comuni.cerca("CASTRO (BG)")["provincia"] == "BG"
 # apostrofi e accenti non contano da nessuno dei due lati
 assert comuni.cerca("ALI (ME)")["nome"] == "ALI'"
-# i 3.396 comuni soppressi restano fuori: quale codice voglia la Questura per
-# chi ci e' nato non e' scritto da nessuna parte
-assert comuni.cerca("ABBADIA ALPINA (TO)") is None
+# i comuni soppressi si usano, e la Questura li accetta: chiesto al suo web
+# service il 20 agosto 2026. Ma solo quando il documento dice la provincia,
+# perche' e' lei a distinguere il soppresso da chi ha preso il suo posto
+assert comuni.cerca("ABBADIA CERRETO (MI)")["codice"] == "403015699"
+assert comuni.cerca("ABBADIA CERRETO (LO)")["codice"] == "403098001"
+# senza provincia si resta fra i vivi
+assert comuni.cerca("ABBADIA CERRETO")["provincia"] == "LO"
 # quello che non somiglia a niente non diventa un comune
 assert comuni.cerca("XQZWKJ") is None
 assert comuni.cerca("") is None

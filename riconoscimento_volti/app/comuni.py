@@ -11,10 +11,22 @@ non somiglia abbastanza a niente non si propone niente.
 ## Le due trappole di questa tabella, contate
 
 **Su 11.294 righe, 3.396 sono comuni soppressi**, che restano nell'elenco con la
-data in cui hanno smesso di esistere. Qui si cerca **solo fra i 7.898 vivi**: per
-chi e' nato in un comune poi soppresso quale dei due codici voglia la Questura
-non e' scritto da nessuna parte e va provato col loro web service, quindi
-indovinarlo adesso sarebbe peggio che lasciare il campo vuoto.
+data in cui hanno smesso di esistere. **Si possono usare**, e non e' una
+deduzione: chiesto al web service della Questura il 20 agosto 2026, con il
+metodo di prova che valida senza trasmettere. Per uno nato nel 1980 ad Abbadia
+Cerreto passano tutti e due i codici, quello vecchio di Milano soppresso nel 1992
+e quello nuovo di Lodi, e passano anche per uno nato nel 2000. Il controllo che
+rende la prova una misura: un codice inventato viene **respinto**, con scritto
+"Comune di Nascita Errato". Quindi il controllo c'e' e i soppressi lo superano.
+
+Il ragionamento che c'era arrivato prima, di Felice: chi e' nato in un comune che
+non esiste piu' continua a scrivere quello, altrimenti ogni host dovrebbe mettersi
+a cercare come si chiama adesso.
+
+**Ma i soppressi si cercano solo quando il documento dice la provincia.** Senza,
+`ABBADIA CERRETO` somiglia ugualmente a due righe e non si saprebbe quale
+scegliere; e siccome i cinque omonimi qui sotto sono posti **diversi**, un
+pareggio sciolto a caso li' sarebbe un errore vero.
 
 **Cinque nomi validi esistono in due province**: Castro, Livo, Peglio, Samone e
 San Teodoro. Il nome da solo non e' una chiave, nome piu' provincia si. Per
@@ -65,16 +77,16 @@ def distanza(prima, poi, tetto=TETTO):
 
 
 def _carica():
-    """I comuni vivi, gia' normalizzati. Si legge una volta e basta: questo
-    modulo vive dentro il processo usa e getta che legge una fotografia sola."""
+    """Tutti i comuni, gia' normalizzati, con l'ultimo posto che dice se sono
+    ancora in vita. Si legge una volta e basta: questo modulo vive dentro il
+    processo usa e getta che legge una fotografia sola."""
     vivi = []
     with open(ELENCO, encoding="utf-8", newline="") as dentro:
         for riga in csv.DictReader(dentro):
-            if riga.get("DataFineVal", "").strip():
-                continue
             nome = riga["Descrizione"].strip()
             vivi.append((normalizza(nome), nome, riga["Provincia"].strip(),
-                         riga["Codice"].strip()))
+                         riga["Codice"].strip(),
+                         not riga.get("DataFineVal", "").strip()))
     return vivi
 
 
@@ -97,12 +109,16 @@ def cerca(testo, tetto=TETTO):
     cercato = normalizza(PROVINCIA.sub(" ", testo or ""))
     if not cercato:
         return None
-    dove = [c for c in _VIVI if c[2] == sigla] or _VIVI
+    # Con la provincia stampata si cerca dentro quella e basta, soppressi
+    # compresi: la provincia scioglie da sola sia i cinque omonimi sia il doppione
+    # fra un comune soppresso e quello che ha preso il suo posto. Senza, si resta
+    # fra i vivi, dove ogni nome e' quasi sempre uno solo.
+    dove = [c for c in _VIVI if c[2] == sigla] if sigla else [c for c in _VIVI if c[4]]
     esatti = [c for c in dove if c[0] == cercato]
     vicini = esatti or _i_piu_vicini(dove, cercato, tetto)
     if len(vicini) != 1:
         return None
-    _, nome, provincia, codice = vicini[0]
+    _, nome, provincia, codice, _vivo = vicini[0]
     return {"nome": nome, "provincia": provincia, "codice": codice}
 
 
