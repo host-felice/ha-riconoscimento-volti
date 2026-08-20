@@ -20,6 +20,8 @@ servizio: stesso innesco, stesso viaggio, e i suoi 370 MB se ne vanno quando
 quel processo muore. Aprire il modello a ogni lettura costa 0,6 secondi su un
 N4000, misurati, e non sposta il conto.
 """
+import re
+
 import cv2
 import numpy as np
 
@@ -69,3 +71,37 @@ def righe(dati_binari):
     # e portarlo in giro sarebbe peso.
     return [testo.strip() for _, testo, fiducia in (esito or [])
             if float(fiducia) >= FIDUCIA_MINIMA and testo.strip()]
+
+
+# Una data stampata: due cifre, due cifre, quattro cifre, separate come capita.
+DATA = re.compile(r"\b(\d{2})[.,/\- ](\d{2})[.,/\- ](\d{4})\b")
+
+# Quante date porta stampate una patente italiana: nascita, rilascio, scadenza,
+# in quest'ordine dall'alto verso il basso.
+DATE_DELLA_PATENTE = 3
+
+
+def proponi(righe):
+    """I campi che si possono proporre dal testo stampato, e sono pochi apposta.
+
+    **Si propone solo quello che si riconosce dalla forma**, non quello che sta
+    accanto a un'etichetta. Le etichette stampate l'OCR se le sfilaccia
+    (`LUOGOFDATADENASOTA`, misurato il 20 agosto 2026) mentre i valori li legge
+    bene: cercare un valore "quello dopo la scritta Nato il" vuol dire appoggiarsi
+    proprio al pezzo che si rompe.
+
+    **E si propone solo quando il conto torna esatto.** Una patente porta tre
+    date stampate e sempre in quello stesso ordine: se se ne trovano tre, quelle
+    sono. Se se ne trovano due o quattro e' successo qualcos'altro, e allora non
+    si propone niente invece di indovinare. Un campo vuoto costa all'ospite dieci
+    secondi di scrittura; un campo pieno e sbagliato costa una schedina sbagliata
+    in Questura.
+
+    Quello che esce di qui **non e' verificato da niente**, a differenza dei campi
+    della banda ottica che portano la loro cifra di controllo. Va mostrato
+    all'ospite segnalato come da guardare, non dato per buono.
+    """
+    date = ["%s/%s/%s" % (g, m, a) for g, m, a in DATA.findall(" ".join(righe))]
+    if len(date) != DATE_DELLA_PATENTE:
+        return {}
+    return {"data_nascita": date[0], "scadenza": date[2]}

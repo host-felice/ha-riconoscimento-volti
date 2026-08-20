@@ -22,10 +22,11 @@ import cv2
 import invio
 import minifasnet
 import mrz
+import ottico
 import registro
 import volti
 
-VERSIONE = "0.20.2"
+VERSIONE = "0.21.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 # **"modello" non e' piu' un'opzione del pannello**, e non lo sara' nemmeno dopo.
@@ -171,8 +172,12 @@ def _errore_senza_mrz(e):
     # Il testo stampato viaggia anche qui: su un documento senza banda ottica,
     # come la patente, la banda che manca non e' una lettura fallita, e' l'unica
     # lettura possibile che diventa quella stampata.
-    return jsonify({"errore": str(e),
-                    "testo_stampato": getattr(e, "testo_stampato", [])}), 422
+    testo = getattr(e, "testo_stampato", [])
+    # I campi che si riescono a proporre dal solo testo stampato. Sono pochi e
+    # **nessuno di loro e' verificato**, a differenza di quelli della banda
+    # ottica: la pagina li segna come da guardare, non come letti bene.
+    return jsonify({"errore": str(e), "testo_stampato": testo,
+                    "campi_proposti": ottico.proponi(testo)}), 422
 
 
 @app.errorhandler(mrz.LettoreAssente)

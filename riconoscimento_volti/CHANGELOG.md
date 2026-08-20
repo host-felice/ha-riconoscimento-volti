@@ -3,6 +3,30 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.21.0
+
+- **Anche la patente propone i campi, invece di lasciare il modulo vuoto.**
+  Il testo stampato lo si leggeva gia', ma restava una lista di righe da
+  guardare: adesso quello che si riconosce arriva scritto dentro i campi e
+  l'ospite conferma o corregge, com'e' per gli altri documenti.
+- **Si propone solo quello che si riconosce dalla forma**, non quello che sta
+  accanto a un'etichetta: le etichette stampate l'OCR se le sfilaccia mentre i
+  valori li legge bene. E si propone **solo quando il conto torna esatto**: la
+  patente porta tre date stampate e sempre in quell'ordine, quindi se se ne
+  trovano tre quelle sono, e se se ne trovano due o quattro non si propone
+  niente invece di indovinare.
+- I campi proposti si vedono **col bordo rosso**, come quelli che non passano la
+  loro cifra di controllo, e con scritto perche': dietro a questi non c'e'
+  nessuna verifica, quindi vanno guardati uno per uno.
+- **Se non si legge niente lo si dice subito, non alla fine**, ed e' il vero
+  guadagno della lettura che parte allo scatto: si consiglia di rifare la foto
+  li' per li'. Il motivo che conta non sono i dati, che l'ospite puo' scrivere:
+  e' che **una fotografia troppo scarsa per essere letta di solito lo e' anche
+  per riconoscere il viso**, e quello si scopre in fondo, quando rifare la foto
+  vuol dire ricominciare da capo.
+- Vale il solito **limite di due tentativi, mai tre**: al secondo non si insiste
+  piu' e si va avanti, i dati si scriveranno a mano.
+
 ## 0.20.2
 
 **All'ospite non serve sapere come funziona.** Fa due foto e un selfie: dove

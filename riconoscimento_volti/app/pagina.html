@@ -157,6 +157,7 @@
   <img class="anteprima" id="ant_selfie" alt="">
 </div>
 
+<div class="avviso" id="esito_lettura" style="display:none"></div>
 <p class="nota" id="sto_leggendo"></p>
 
 <div class="passo" id="passo_consenso">
@@ -375,7 +376,39 @@ function leggiSubito(chiave, blob) {
   codaLetture = codaLetture.then(() => chiama("mrz", modulo));
   letture[chiave] = codaLetture;
   aggiornaLettura();
-  letture[chiave].then(aggiornaLettura);
+  letture[chiave].then(esito => { aggiornaLettura(); giudicaLettura(esito); });
+}
+
+// Quante volte si e' gia' provato a leggere. **Due, mai tre**, come per il
+// confronto dei volti: e' la stessa regola e non ne serve una seconda.
+let tentativiLettura = 0;
+
+// Se non si e' letto niente conviene rifare la foto **adesso**, ed e' il motivo
+// per cui la lettura parte allo scatto invece che alla fine. Non e' per i dati:
+// quelli l'ospite li puo' scrivere. E' che una fotografia troppo scarsa per
+// essere letta di solito e' troppo scarsa anche per il confronto del viso, e
+// quello si scopre in fondo, quando rifare la foto vuol dire rifare tutto.
+function giudicaLettura(esito) {
+  const dove = document.getElementById("esito_lettura");
+  const niente = tipo === "patente"
+    // Sulla patente la banda ottica manca per costruzione: non e' un guasto.
+    // Quello che dice se la foto vale e' il testo stampato.
+    ? !(esito && esito.testo_stampato && esito.testo_stampato.length)
+    : !!(esito && esito.errore);
+  if (!niente) {
+    dove.style.display = "none";
+    return;
+  }
+  tentativiLettura++;
+  dove.innerHTML = tentativiLettura >= TENTATIVI_MAX
+    ? "Non si legge neanche questa. <b>Vai avanti lo stesso</b>: i dati li scriverai "
+      + "tu alla fine, e sono due minuti."
+    : "Non sono riuscito a leggere questo documento. <b>Conviene rifare la foto "
+      + "adesso</b>, pi&ugrave; da vicino e senza riflessi. Non &egrave; per i dati, quelli "
+      + "puoi scriverli tu: &egrave; che una foto troppo scarsa per essere letta di solito "
+      + "lo &egrave; anche per riconoscere il viso, e te ne accorgeresti alla fine, quando "
+      + "rifarla vuol dire ricominciare da capo.";
+  dove.style.display = "block";
 }
 
 function aggiornaLettura() {
@@ -543,7 +576,7 @@ function laViaDiScampo() {
 function scampo(quale) {
   const dove = document.getElementById("esito");
   if (quale === "nuovo") {
-    tentativi = 0; esauriti = false;
+    tentativi = 0; esauriti = false; tentativiLettura = 0;
     foto.documento = foto.retro = foto.selfie = null;
     document.querySelectorAll(".anteprima").forEach(i => { i.src = ""; });
     dove.innerHTML = "";
@@ -645,9 +678,17 @@ const DA_MOSTRARE = ["tipo_documento", "cognome", "nome", "sesso", "data_nascita
                      "scadenza", "stato_emissione"];
 
 function datiAMano(fallita) {
+  // Quello che si e' riusciti a proporre dal testo stampato arriva gia' scritto
+  // nel campo, ma **segnato come da guardare**: nessuno di questi valori ha una
+  // cifra di controllo dietro, a differenza di quelli della banda ottica.
+  const proposti = (fallita && fallita.campi_proposti) || {};
   const campi = {};
-  for (const chiave of DA_MOSTRARE) campi[chiave] = { valore: "" };
+  for (const chiave of DA_MOSTRARE)
+    campi[chiave] = proposti[chiave]
+      ? { valore: proposti[chiave], verificato: false }
+      : { valore: "" };
   return { campi: campi, a_mano: true, sigla_documento: "senza-mrz",
+           quanti_proposti: Object.keys(proposti).length,
            perche: fallita && fallita.errore };
 }
 
@@ -682,6 +723,11 @@ function schedaMrz(r) {
         ? "Con la patente <b>i dati li scrivi tu</b>, qui sotto."
         : "Non sono riuscito a prendere i dati da solo"
           + (r.perche ? " (" + r.perche + ")" : "") + ", quindi <b>li scrivi tu</b> qui sotto.")
+      + (r.quanti_proposti
+        ? " Qualcosa sono riuscito a leggerlo dal documento e te l&rsquo;ho gi&agrave; scritto, "
+          + "<b>col bordo rosso</b>: quelli guardali uno per uno, perch&eacute; l&igrave; non "
+          + "ho modo di accorgermi da solo se ho letto male."
+        : "")
       + " Il confronto fra la fotografia del documento e il tuo selfie &egrave; stato fatto "
       + "come sempre, e lo trovi qui sopra.</p>" +
       testoStampato(r) + campiModificabili(r) +
