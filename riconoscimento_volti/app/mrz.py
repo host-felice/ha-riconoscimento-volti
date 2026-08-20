@@ -349,7 +349,10 @@ def _in_disparte(scrivi_qui, dati_binari, anche_ottico, anche_banda):
     testo = []
     if anche_ottico:
         try:
-            testo = ottico.righe(dati_binari)
+            testo = ottico.righe(
+                dati_binari,
+                # Senza banda ottica il tempo c'e': si legge piu' in grande.
+                ottico.LATO if anche_banda else ottico.LATO_LARGO)
         except Exception as questo:
             # Non fa cadere niente: la banda ottica e' la lettura che conta, e
             # il testo stampato e' quello che si aggiunge quando si puo'.

@@ -29,6 +29,15 @@ import numpy as np
 # perdere caratteri: misurato su due N4000, 7,93 s a 1000 px contro 7,74 a 800.
 LATO = 1000
 
+# **Quando non c'e' una banda ottica da leggere, si puo' guardare piu' da
+# vicino.** Il 1000 li' sopra era stato scelto quando ogni lettura pagava anche
+# le due passate della banda: il tetto era il tempo, non la resa. Su una patente
+# quelle passate non ci sono piu' (misurato il 20 agosto 2026: da 24,9 secondi a
+# 5,2) e i venti secondi liberati si spendono meglio in pixel. Serve: nella
+# stessa prova, delle tre date stampate sulla patente ne era stata letta **una**,
+# e sono la riga piu' piccola del documento.
+LATO_LARGO = 1600
+
 # Sotto questo il pezzo di testo si butta. Non e' per la qualita' della lettura:
 # e' che le etichette stampate e le decorazioni producono stringhe plausibili con
 # poca fiducia, e in mezzo ai valori veri fanno solo rumore.
@@ -48,7 +57,7 @@ def rimpicciolisci(img, lato_lungo):
     return cv2.resize(img, (int(w * scala), int(h * scala)), interpolation=cv2.INTER_AREA)
 
 
-def righe(dati_binari):
+def righe(dati_binari, lato=LATO):
     """Il testo stampato che si e' riusciti a leggere, riga per riga.
 
     Esce grezzo apposta. Trasformarlo nei campi di Alloggiati Web vuol dire
@@ -66,7 +75,7 @@ def righe(dati_binari):
     img = cv2.imdecode(np.frombuffer(dati_binari, np.uint8), cv2.IMREAD_COLOR)
     if img is None:
         return []
-    esito, _ = RapidOCR()(rimpicciolisci(img, LATO))
+    esito, _ = RapidOCR()(rimpicciolisci(img, lato))
     # Del riquadro non ce ne facciamo niente finche' i campi non si estraggono,
     # e portarlo in giro sarebbe peso.
     return [testo.strip() for _, testo, fiducia in (esito or [])

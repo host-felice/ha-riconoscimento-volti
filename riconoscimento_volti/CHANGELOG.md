@@ -3,6 +3,26 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.25.0
+
+- **Meno campi da guardare.** Restano tipo di documento, cognome, nome, sesso,
+  data di nascita, numero del documento e scadenza. Spariscono **numero di
+  supporto** e **numero personale**, che non vogliono dire niente per chi ha il
+  documento in mano, e **stato di rilascio**, che finche' si prova con documenti
+  italiani e' sempre lo stesso. Via anche **cittadinanza**, che tornera' quando
+  sara' un menu' che si completa mentre si scrive. La banda ottica continua a
+  leggerli tutti e quattro: non si mostrano, non si perdono.
+- **Il formato della data adesso si vede**: nei campi vuoti c'e' scritto
+  `gg/mm/aaaa`, e sul telefono si apre la tastiera numerica. Senza un esempio
+  davanti non c'era modo di sapere se l'anno lo volesse a due cifre o a quattro.
+- **Il testo stampato si legge a 1600 pixel invece di 1000** quando il documento
+  non ha la banda ottica. Il 1000 era stato scelto quando ogni lettura pagava
+  anche le due passate della banda, e il tetto era il tempo. Sulla patente quelle
+  passate non ci sono piu' (24,9 secondi diventati 5,2) e i venti secondi
+  liberati si spendono meglio in pixel. Serviva: nell'ultima prova, delle **tre**
+  date stampate sulla patente ne era stata letta **una**, e sono la riga piu'
+  piccola del documento.
+
 ## 0.24.0
 
 Da una riga di registro sulla prova con la patente: **24,9 secondi**, righe
