@@ -3,6 +3,29 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.38.0
+
+- **Sulla carta d'identita' il comune di emissione adesso si legge.** Qui i campi
+  non sono numerati come sulla patente: c'e' un'etichetta scritta e il valore va
+  a capo. Letto davvero il 20 agosto 2026:
+
+  ```
+  CARTA DIIDENTITA/IDENTITY CARD
+  COMUNEOI/MUNICVPALITY
+  TERAMO
+  ```
+
+  L'etichetta esce sfilacciata (`COMUNEOI`, `MUNICVPALITY`) ma **la parola intera
+  dentro sopravvive**, ed e' quella che si cerca, con la stessa tolleranza di due
+  caratteri usata per i comuni. Vale sia quella italiana sia quella inglese. Il
+  nome poi passa dall'elenco della Polizia come tutti gli altri.
+
+- **Le due facce della carta si sommano.** La banda ottica sta dietro e il comune
+  che l'ha emessa sta davanti: prendendo solo la lettura riuscita si buttava via
+  l'unica faccia che quel campo ce l'aveva. Adesso quello che il fronte ha letto
+  in piu' si aggiunge, e quello che la banda gia' dice non si tocca, perche' ha
+  le cifre di controllo dietro.
+
 ## 0.37.0
 
 **Una tabella sola al posto di tre rattoppi.** A furia di togliere un campo alla

@@ -106,3 +106,20 @@ r = ottico.dalla_patente(["3. 12.03.90 TERAMO (TE)", "4c. MC-TERAMO"])
 assert r["comune_emissione"]["valore"] == "TERAMO (TE)", r
 
 print("i comuni si leggono dall'elenco della Polizia, con due caratteri di tolleranza")
+
+# --- il comune di emissione sulla carta d'identita' -------------------------
+# Righe vere lette il 20 agosto 2026: l'etichetta esce sfilacciata ma la parola
+# COMUNE dentro sopravvive, e il valore va a capo.
+carta = ["CARTA DIIDENTITA/IDENTITY CARD", "COMUNEOI/MUNICVPALITY", "TERAMO"]
+r = ottico.dalla_carta(carta)
+assert r["comune_emissione"]["valore"] == "TERAMO (TE)", r
+
+# l'etichetta inglese vale quanto quella italiana
+assert ottico.dalla_carta(["MUNICIPALITY", "MESSINA"])["comune_emissione"]["valore"] == "MESSINA (ME)"
+
+# senza etichetta non si prende niente, e un nome che non esiste non diventa un comune
+assert ottico.dalla_carta(["CARTA DI IDENTITA", "TERAMO"]) == {}
+assert ottico.dalla_carta(["COMUNEOI/MUNICVPALITY", "XQZWKJ"]) == {}
+assert ottico.dalla_carta([]) == {}
+
+print("sulla carta d'identita' il comune si trova dall'etichetta, anche sfilacciata")

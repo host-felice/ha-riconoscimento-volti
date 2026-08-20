@@ -536,6 +536,14 @@ async function aspettaLaLettura() {
   for (const e of esiti) if (e && e.testo_stampato) testo.push(...e.testo_stampato);
   const conBanda = esiti.find(e => e && !e.errore && e.campi);
   const dati = conBanda || datiAMano(esiti.find(e => e && e.errore));
+  // **Le due facce si sommano.** Sulla carta d'identita' la banda ottica sta
+  // dietro e il comune che l'ha emessa sta davanti: prendendo solo la lettura
+  // riuscita si buttava via l'unica faccia che quel campo ce l'aveva. Quello che
+  // la banda gia' dice non si tocca, perche' ha le cifre di controllo dietro.
+  if (conBanda)
+    for (const e of esiti)
+      for (const [chiave, campo] of Object.entries((e && e.campi_proposti) || {}))
+        if (!dati.campi[chiave]) dati.campi[chiave] = campo;
   dati.testo_stampato = testo;
   return dati;
 }

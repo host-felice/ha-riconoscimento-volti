@@ -26,7 +26,7 @@ import ottico
 import registro
 import volti
 
-VERSIONE = "0.37.0"
+VERSIONE = "0.38.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 # **"modello" non e' piu' un'opzione del pannello**, e non lo sara' nemmeno dopo.
@@ -996,6 +996,10 @@ def leggi_mrz():
         # nemmeno se la lettura del testo stampato ha girato.
         testo = getattr(guaio, "testo_stampato", [])
         proposti = ottico.proponi(testo)
+        if dichiarato == "carta":
+            # Il fronte della carta la banda ottica non ce l'ha, ma ha scritto
+            # il comune che l'ha emessa, che alla banda del retro manca.
+            proposti = dict(ottico.dalla_carta(testo), **proposti)
         if dichiarato == "patente":
             # I campi della patente sono numerati, e il numero sopravvive alla
             # lettura meglio dell'etichetta scritta. Le date restano quelle

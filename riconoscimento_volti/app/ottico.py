@@ -188,6 +188,41 @@ def _ufficio(letto):
     return letto.rsplit("-", 1)[-1]
 
 
+ETICHETTE_DEL_COMUNE = ("COMUNE", "MUNICIPALITY")
+
+
+def dalla_carta(righe):
+    """Il comune che ha emesso la carta d'identita'.
+
+    Qui i campi non sono numerati come sulla patente: c'e' un'etichetta scritta e
+    il valore va a capo. Letto davvero il 20 agosto 2026:
+
+        CARTA DIIDENTITA/IDENTITY CARD
+        COMUNEOI/MUNICVPALITY
+        TERAMO
+
+    L'etichetta esce sfilacciata (`COMUNEOI`, `MUNICVPALITY`) ma **la parola
+    intera dentro sopravvive**, ed e' quella che si cerca, con la stessa
+    tolleranza di due caratteri che si usa per i comuni. Il valore si prende dal
+    resto della riga se c'e' rimasto qualcosa, altrimenti dalla riga dopo.
+    """
+    pulite = [comuni.normalizza(r) for r in righe]
+    for quante, riga in enumerate(pulite):
+        parole = riga.split()
+        dove = next((i for i, p in enumerate(parole)
+                     if any(comuni.distanza(p, e) <= comuni.TETTO
+                            for e in ETICHETTE_DEL_COMUNE)), None)
+        if dove is None:
+            continue
+        resto = " ".join(parole[dove + 1:])
+        for candidato in (resto, pulite[quante + 1] if quante + 1 < len(pulite) else ""):
+            trovato = comuni.cerca(candidato)
+            if trovato:
+                return {"comune_emissione": {
+                    "valore": "%s (%s)" % (trovato["nome"], trovato["provincia"])}}
+    return {}
+
+
 def proponi(righe):
     """La data di nascita e la scadenza, riconosciute l'una dall'altra.
 
