@@ -21,8 +21,9 @@ sapere cosa si sta installando senza andare a leggere il codice.
   una data come `21.07.2016` c'e' un `2.` che senza rete diventerebbe il nome.
   Quello che non ha la forma resta vuoto e lo scrive l'ospite.
 
-- **L'anno di una data ha due cifre o quattro, mai tre.** Con tre usciva un anno
-  inventato.
+- **L'anno di una data ha due cifre o quattro, mai tre.** Una rete in piu', non
+  la correzione di un guasto visto: tre cifre non le ha mai lette nessuno, ma la
+  regola le avrebbe accettate e ne sarebbe uscito un anno inventato.
 
 - **L'avviso "mi serve il numero del documento" adesso se ne va.** Restava
   appiccicato sotto anche dopo che il numero era stato scritto e la
