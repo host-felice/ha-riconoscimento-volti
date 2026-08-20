@@ -3,6 +3,31 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.29.0
+
+- **I comuni soppressi tornano dentro la ricerca, e non e' un'ipotesi.** Chiesto
+  al web service della Questura il 20 agosto 2026, con il metodo di prova che
+  valida senza trasmettere niente: per uno nato nel 1980 ad Abbadia Cerreto
+  passano **tutti e due** i codici, quello vecchio di Milano soppresso nel 1992 e
+  quello nuovo di Lodi. E passano anche per uno nato nel 2000. Il controllo che
+  rende la prova una misura invece di un "ha detto di si": un codice **inventato**
+  viene respinto, con scritto "Comune di Nascita Errato". Il controllo c'e', ed e'
+  proprio i soppressi che lo superano.
+
+  Il ragionamento c'era arrivato prima, ed e' di Felice: chi e' nato in un comune
+  che non esiste piu' continua a scrivere quello, altrimenti ogni host dovrebbe
+  mettersi a cercare come si chiama adesso.
+
+- **Ma i soppressi si cercano solo quando il documento stampa la provincia.**
+  Senza, `ABBADIA CERRETO` somiglia ugualmente a due righe e non ci sarebbe modo
+  di scegliere; e siccome i cinque omonimi (Castro, Livo, Peglio, Samone, San
+  Teodoro) sono posti **diversi**, sciogliere un pareggio a caso li' sarebbe un
+  errore vero. Con la provincia stampata si cerca dentro quella e basta, e la
+  provincia scioglie tutti e due i casi da sola.
+
+- Tolta dalla 0.28.0 una prova che non c'era: `MIT-UCTO` era un errore di
+  battitura, non una lettura storpiata. La tolleranza resta, il racconto no.
+
 ## 0.28.0
 
 Due campi nuovi, **comune di nascita** e **comune di emissione**, e sotto di loro
@@ -22,13 +47,12 @@ l'add-on.
   Quando manca e il nome e' uno dei cinque, non si propone niente.
 - **Comune di emissione dal campo 4c.** Regola detta da Felice: **MIT-UCO** vuol
   dire duplicato emesso dall'Ufficio Centrale Operativo, che sta a **Roma**. Si
-  riconosce anche storpiato, perche' quella sigla la lettura la storpia: vista
-  uscire `MIT-UCTO`. Negli altri casi l'ufficio e' sigla piu' citta'
-  (`MC-TERAMO`) e la citta' si cerca nell'elenco come le altre.
-- **I 3.396 comuni soppressi restano fuori.** Sono ancora nell'elenco con la data
-  in cui hanno smesso di esistere, ma per chi ci e' nato quale dei due codici
-  voglia la Questura non e' scritto da nessuna parte e va provato col loro web
-  service. Indovinarlo adesso sarebbe peggio di un campo vuoto.
+  riconosce anche storpiato, per due caratteri: non perche' sia successo, ma
+  perche' e' il tipo di sigla che la lettura storpia. Negli altri casi
+  l'ufficio e' sigla piu' citta'
+- **I 3.396 comuni soppressi restano fuori** finche' non si sa quale codice
+  voglia la Questura per chi ci e' nato. *(Risolto nella 0.29.0: li vuole tutti e
+  due.)*
 - Il marcatore dei campi adesso prende anche `4a` `4b` `4c`, pure quando la
   lettura ci appiccica una cifra davanti: letto davvero `21.07.201664c.MIT-UCO`.
 
