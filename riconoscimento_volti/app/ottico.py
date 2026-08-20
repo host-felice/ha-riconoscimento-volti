@@ -156,8 +156,7 @@ def dalla_patente(righe):
     for numero, chiave, forma in DALLA_PATENTE:
         valore = pezzi.get(numero, "").strip(" .,-")
         if valore and forma.match(valore):
-            # Nessuno li ha verificati: escono col bordo rosso, da guardare.
-            fuori[chiave] = {"valore": valore, "verificato": False}
+            fuori[chiave] = {"valore": valore}
     # Nel campo 3 c'e' la data di nascita e accanto il luogo: tolta la data,
     # quello che resta e' il comune, con la sigla della provincia fra parentesi.
     _aggiungi(fuori, "comune_nascita", DATA.sub(" ", pezzi.get("3", "")))
@@ -170,8 +169,7 @@ def _aggiungi(fuori, chiave, letto):
     letto la macchina: e' l'elenco che decide, e sotto c'e' gia' il suo codice."""
     trovato = comuni.cerca(letto)
     if trovato:
-        fuori[chiave] = {"valore": "%s (%s)" % (trovato["nome"], trovato["provincia"]),
-                         "verificato": False}
+        fuori[chiave] = {"valore": "%s (%s)" % (trovato["nome"], trovato["provincia"])}
 
 
 def _ufficio(letto):
@@ -222,5 +220,4 @@ def proponi(righe):
     if len(coppie) != 1:
         return {}
     nascita, scadenza = sorted(coppie[0], key=lambda quando: quando[6:])
-    return {"data_nascita": {"valore": nascita, "verificato": True},
-            "scadenza": {"valore": scadenza, "verificato": True}}
+    return {"data_nascita": {"valore": nascita}, "scadenza": {"valore": scadenza}}

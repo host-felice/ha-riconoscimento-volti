@@ -20,8 +20,8 @@ import ottico
 vera = ["PATENTE DI GUIDA", "ROSSI", "MARIO", "3. 01.03.80 MESSINA (ME)",
         "4a. 21.07.20164c.MIT-UCO", "4b. 01.03.2030", "5. TE1234567X"]
 r = ottico.proponi(vera)
-assert r["data_nascita"] == {"valore": "01/03/1980", "verificato": True}, r
-assert r["scadenza"] == {"valore": "01/03/2030", "verificato": True}, r
+assert r["data_nascita"] == {"valore": "01/03/1980"}, r
+assert r["scadenza"] == {"valore": "01/03/2030"}, r
 
 # --- l'anno intero funziona uguale -------------------------------------------
 r = ottico.proponi(["01.03.1980", "21.07.2016", "01.03.2030"])
@@ -51,7 +51,7 @@ assert ottico.proponi([]) == {}
 patente = ["PATENTE DI GUIDA", "1. MARRA", "2. FELICE", "3. 01.03.80 MESSINA (ME)",
            "4a. 21.07.201664c.MIT-UCTO", "4b. 01.03.2030", "5. U1A000000B", "7.", "9. B"]
 r = ottico.dalla_patente(patente)
-assert r["cognome"] == {"valore": "MARRA", "verificato": False}, r
+assert r["cognome"] == {"valore": "MARRA"}, r
 assert r["nome"]["valore"] == "FELICE", r
 assert r["numero_documento"]["valore"] == "U1A000000B", r
 

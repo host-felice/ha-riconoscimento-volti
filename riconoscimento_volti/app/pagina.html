@@ -190,7 +190,7 @@
     </div>
     <div class="avviso risoluzione" style="display:none"></div>
     <div class="bottoni" style="margin-top:.6rem">
-      <button data-scatta="porta">Scatta tre foto</button>
+      <button data-scatta="porta">Scatta</button>
       <button class="chiaro" data-gira="porta">Gira</button>
       <button class="chiaro" data-annulla="porta">Annulla</button>
     </div>
@@ -731,7 +731,8 @@ function campiModificabili(r) {
           ? ' placeholder="gg/mm/aaaa" inputmode="numeric"' : "") +
         ' value="' + (c.valore || "").replace(/"/g, "&quot;") + '"></div>';
   }
-  return campi + '<p class="sotto">Su ogni campo puoi scrivere. Vale quello che confermi.</p>';
+  return campi + '<p class="sotto">Controlla che sia tutto giusto e correggi dove serve. '
+    + "Vale quello che confermi.</p>";
 }
 
 function schedaMrz(r) {
@@ -930,12 +931,15 @@ async function raffica() {
   }
   const scatti = [];
   for (let i = 0; i < 3; i++) {
-    esito.innerHTML = "<p>scatto " + (i + 1) + " di 3...</p>";
+    // **Non si dice quante sono.** Chi sa che sono tre, al terzo pensa di aver
+    // finito e sposta il telefono, e l'ultimo scatto e' perso. Si dice l'unica
+    // cosa che deve fare: stare fermo finche' non gli si dice basta.
+    esito.innerHTML = "<p>Tieni fermo il telefono&hellip;</p>";
     scatti.push(await fotogramma(video));
     if (i < 2) await new Promise(r => setTimeout(r, 700));
   }
   spegni("porta");
-  esito.innerHTML = "<p>Guardo chi c'è nei tre scatti...</p>";
+  esito.innerHTML = "<p>Fatto, guardo chi c'è.</p>";
   const dati = new FormData();
   scatti.forEach((s, i) => dati.append("immagine", s, "porta" + i + ".jpg"));
   dati.append("attesi", JSON.stringify(attesi));

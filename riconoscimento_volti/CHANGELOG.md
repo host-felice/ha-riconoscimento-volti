@@ -3,6 +3,26 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.30.0
+
+Tre cose viste da Felice provando il flusso intero, che ha funzionato tutto
+tranne il sesso, che nessuno legge.
+
+- **Via i bordi rossi dai campi letti dal testo stampato.** Servivano a dire
+  "questo non l'ha verificato nessuno", ma da quando i campi arrivano quasi tutti
+  pieni erano rossi quasi tutti, e un segnale che sta ovunque non segnala piu'
+  niente: sembrava che ci fosse qualcosa che non andava. Il rosso torna a voler
+  dire una cosa sola, **qui c'e' un errore**, e resta dov'era gia' vero: sui campi
+  della banda ottica che non tornano con la loro cifra di controllo.
+- **I campi si controllano, non si scrivono.** Sotto la scheda c'era scritto che
+  su ogni campo si puo' scrivere, che era il testo di quando arrivavano vuoti.
+  Adesso dice di controllare e correggere dove serve.
+- **Alla porta non si dice piu' quante fotografie sono.** Il tasto diceva "scatta
+  tre foto" e il conto andava avanti sotto gli occhi. Chi sa che sono tre, al
+  terzo pensa di aver finito e sposta il telefono, e l'ultimo scatto e' perso.
+  Adesso si dice l'unica cosa che deve fare: tenere fermo il telefono finche' non
+  gli si dice basta.
+
 ## 0.29.0
 
 - **I comuni soppressi tornano dentro la ricerca, e non e' un'ipotesi.** Chiesto
