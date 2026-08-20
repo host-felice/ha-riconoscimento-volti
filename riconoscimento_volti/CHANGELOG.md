@@ -3,6 +3,27 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.20.1
+
+Solo parole, e sono quelle che legge l'ospite.
+
+- **Il terzo tasto dice "Patente", e basta.** Diceva "Patente o altro senza
+  caratteri", che vuol dire un'altra cosa: "senza caratteri" si capisce come
+  "senza testo scritto", e la patente di testo ne ha parecchio. Nessuno sa che
+  quelle sono le righe a lettura automatica, e non deve saperlo. E per un
+  italiano oltre a patente, carta d'identita' e passaporto non c'e' altro,
+  quindi i documenti sono tre e l'elenco e' finito.
+- **La stessa cosa si chiama sempre "le righe fitte"**, in tutta la pagina.
+  Prima era "i caratteri" in un punto, "le righe di caratteri" in un altro e
+  "le righe fitte di lettere e simboli" in un terzo.
+- Quando la patente arriva al risultato, si spiega **perche'** i dati vanno
+  scritti a mano invece di lasciarlo capire: quelle righe si controllano da
+  sole, cioe' portano con se' una cifra che dice quando la macchina ha letto
+  male, e sulla patente quella prova non c'e'.
+- "Confronto il viso e leggo i caratteri" non era piu' vero: quando si preme
+  quel tasto il documento e' gia' letto da un pezzo, e l'unica cosa che resta
+  e' il confronto dei volti.
+
 ## 0.20.0
 
 Il pannello di configurazione diceva cose che non si capivano e chiedeva una

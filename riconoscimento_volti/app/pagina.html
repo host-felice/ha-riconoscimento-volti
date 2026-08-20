@@ -94,11 +94,11 @@
 
 <div class="passo" id="passo_tipo">
   <h2>1. Che documento hai?</h2>
-  <p>Cambia quante foto servono: la carta d'identità ha la fotografia davanti e i caratteri dietro, il passaporto ha tutto sulla stessa pagina.</p>
+  <p>Cambia quante foto servono e quanto il sistema riesce a leggere da solo. La carta d'identità ha la fotografia davanti e le righe fitte dietro, il passaporto ha tutto sulla stessa pagina, la patente quelle righe non le ha.</p>
   <div class="bottoni">
     <button class="chiaro" data-tipo="carta">Carta d'identità</button>
     <button class="chiaro" data-tipo="passaporto">Passaporto</button>
-    <button class="chiaro" data-tipo="patente">Patente o altro senza caratteri</button>
+    <button class="chiaro" data-tipo="patente">Patente</button>
   </div>
 </div>
 
@@ -121,8 +121,8 @@
 </div>
 
 <div class="passo spento" id="passo_retro">
-  <h2>3. Il retro, con le due righe di caratteri</h2>
-  <p>Il lato con le righe fitte di lettere e simboli. Metti il telefono di lato e riempi il riquadro: sono quelle righe a compilare il modulo, e se restano piccole vengono lette male. Occhio ai riflessi.</p>
+  <h2>3. Il retro, dove ci sono le righe fitte</h2>
+  <p>Il lato con le due righe fitte di lettere e numeri, in fondo. Metti il telefono di lato e riempi il riquadro: sono quelle righe a compilare il modulo, e se restano piccole vengono lette male. Occhio ai riflessi.</p>
   <button data-camera="retro">Apri la fotocamera</button>
   <div class="mirino" id="mirino_retro">
     <div class="inquadratura">
@@ -263,8 +263,8 @@ function scegliTipo(scelto) {
   document.getElementById("testo_documento").textContent = carta
     ? "Il lato con la tua fotografia. Metti il telefono di lato, riempi il riquadro e tienilo parallelo alla carta, non di sbieco."
     : (aMano
-      ? "Il lato con la tua fotografia. Questo documento non ha le righe di caratteri, quindi la macchina non legge niente e i dati si scrivono a mano: qui si sta provando proprio quella strada."
-      : "La pagina con la fotografia e, sotto, le due righe di caratteri: da questa sola foto esce tutto. Metti il telefono di lato e riempi il riquadro.");
+      ? "Il lato con la tua fotografia e i tuoi dati. La patente non ha le due righe fitte che stanno in fondo alla carta d'identità e al passaporto, quindi qui il modulo lo compili tu."
+      : "La pagina con la fotografia e, sotto, le due righe fitte di lettere e numeri: da questa sola foto esce tutto. Metti il telefono di lato e riempi il riquadro.");
   document.querySelector("#passo_documento .guida").className =
     carta ? "guida documento" : "guida pagina";
   document.getElementById("passo_documento").classList.remove("spento");
@@ -332,8 +332,8 @@ function avvisaSeScarsa(chiave, mirino) {
   const misure = flussi[chiave].getVideoTracks()[0].getSettings();
   const lato = Math.max(misure.width || 0, misure.height || 0);
   if (chiave !== "selfie" && lato && lato < 1600) {
-    nota.textContent = "Questa fotocamera dà " + lato + " pixel: pochi per le righe di "
-      + "caratteri. Avvicina il documento fino a riempire tutto il riquadro, oppure "
+    nota.textContent = "Questa fotocamera dà " + lato + " pixel: pochi per le righe "
+      + "fitte. Avvicina il documento fino a riempire tutto il riquadro, oppure "
       + "rifai la prova dal telefono.";
     nota.style.display = "block";
   } else {
@@ -425,7 +425,7 @@ document.addEventListener("click", ev => {
 document.getElementById("vai").addEventListener("click", async () => {
   const bottone = document.getElementById("vai");
   bottone.disabled = true; bottone.textContent = "Sto guardando...";
-  mostra("<p>Confronto il viso e leggo i caratteri, ci vuole qualche secondo.</p>");
+  mostra("<p>Confronto il tuo viso con la fotografia del documento, ci vuole qualche secondo.</p>");
 
   const perVolto = new FormData();
   perVolto.append("documento", foto.documento, "documento.jpg");
@@ -676,18 +676,23 @@ function campiModificabili(r) {
 
 function schedaMrz(r) {
   if (r.a_mano) {
-    return '<div class="passo"><div class="verdetto no">Questo documento non si legge</div>' +
-      "<p>La banda ottica non si &egrave; letta" + (r.perche ? " (" + r.perche + ")" : "")
-      + ", quindi i campi con la cifra di controllo non ci sono e <b>i dati si scrivono a "
-      + "mano</b>. Il testo stampato invece &egrave; stato letto lo stesso, qui sotto: "
-      + "&egrave; la strada per la patente e per i documenti fuori standard. Il confronto "
-      + "fra la fotografia del documento e il selfie &egrave; stato fatto ed &egrave; qui "
-      + "sopra.</p>" +
+    return '<div class="passo"><div class="verdetto no">' + (tipo === "patente"
+        ? "La patente non si compila da sola" : "Le righe fitte non si sono lette") + "</div>" +
+      "<p>" + (tipo === "patente"
+        ? "La patente non ha le due righe fitte che stanno in fondo alla carta d&rsquo;identit&agrave; "
+          + "e al passaporto. Quelle righe si controllano da sole, cio&egrave; portano con s&eacute; "
+          + "una cifra che dice quando la macchina ha letto male: qui quella prova non c&rsquo;&egrave;, "
+          + "quindi <b>i dati li scrivi tu</b> qui sotto."
+        : "Le righe fitte non si sono lette"
+          + (r.perche ? " (" + r.perche + ")" : "") + ", quindi <b>i dati li scrivi tu</b> qui sotto.")
+      + " Il testo stampato sul documento la macchina l&rsquo;ha letto lo stesso, qui sopra. "
+      + "E il confronto fra la fotografia del documento e il tuo selfie &egrave; stato fatto "
+      + "come sempre, lo trovi pi&ugrave; in alto.</p>" +
       testoStampato(r) + campiModificabili(r) +
       '<button id="conferma">Sì, i dati sono giusti</button></div>';
   }
   if (r.errore) {
-    return '<div class="passo"><div class="verdetto no">I caratteri non si leggono</div>' +
+    return '<div class="passo"><div class="verdetto no">Le righe fitte non si leggono</div>' +
       "<p>" + r.errore + ". Rifai la foto del lato con le righe, più vicino e senza riflessi, "
       + "oppure scrivi i dati a mano.</p></div>";
   }
