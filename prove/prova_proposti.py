@@ -149,4 +149,18 @@ assert r["comune_nascita"]["valore"] == "MESSINA (ME)", r
 # e il numero del campo puo' avere la lettera maiuscola: 4C vale come 4c
 assert r["comune_emissione"]["valore"] == "ROMA (RM)", r
 
-print("la patente si legge anche senza spazi e con i numeri di campo maiuscoli")
+# --- e queste sono le righe uscite dalla patente vera, il 20 agosto 2026 -----
+# Il campo 5 va a capo prima del numero, il 4c resta attaccato alla data del 4a,
+# e le date usano la barra invece del punto. Sette campi su sette.
+vera = ["PATENTEDI GUIDA", "REPUBBLICAITALIANA", "1. MARRA", "2. FELICE",
+        "3.01/03/80", "MESSINA(ME)", "4a.21/07/20164c.MIT-UCO", "4b.01/03/2030",
+        "5.", "U1A000000B", "7.", "9.B"]
+r = dict(ottico.dalla_patente(vera), **ottico.proponi(vera))
+atteso = {"cognome": "MARRA", "nome": "FELICE", "data_nascita": "01/03/1980",
+          "comune_nascita": "MESSINA (ME)", "numero_documento": "U1A000000B",
+          "scadenza": "01/03/2030", "comune_emissione": "ROMA (RM)"}
+for chiave, valore in atteso.items():
+    assert r.get(chiave, {}).get("valore") == valore, (chiave, r.get(chiave))
+
+print("la patente si legge anche senza spazi e con i numeri di campo maiuscoli,")
+print("e sulla patente vera escono sette campi su sette")
