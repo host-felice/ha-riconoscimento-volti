@@ -1,6 +1,6 @@
 ---
 name: Riconoscimento volti
-version: "0.19.2"
+version: "0.20.0"
 slug: riconoscimento_volti
 description: Confronta il volto stampato su un documento con un selfie, riconosce un ospite atteso alla porta e dice se davanti all'obiettivo c'era una persona
 url: https://github.com/host-felice/ha-riconoscimento-volti
@@ -15,7 +15,6 @@ ports:
 ports_description:
   8099/tcp: Interfaccia del riconoscimento (lasciare vuoto per non esporlo fuori)
 options:
-  modello: buffalo_l
   invio_prove: ""
   lettura_ottica: true
   soglia: 0.4
@@ -25,7 +24,6 @@ options:
   parola: ""
   log_level: info
 schema:
-  modello: list(buffalo_l|sface)
   invio_prove: str?
   lettura_ottica: bool
   soglia: float(0.0,1.0)

@@ -25,9 +25,15 @@ import mrz
 import registro
 import volti
 
-VERSIONE = "0.19.2"
+VERSIONE = "0.20.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
+# **"modello" non e' piu' un'opzione del pannello**, e non lo sara' nemmeno dopo.
+# Adesso non e' una scelta perche' i due modelli viaggiano insieme: ogni confronto
+# li misura tutti e due sulle stesse facce, ed e' l'unico modo per decidere fra
+# loro (#34). Dopo non sara' una scelta perche' il modello sara' uno. Resta qui
+# come valore di partenza, cioe' quale dei due firma la risposta finche' la
+# decisione non c'e'.
 PREDEFINITE = {"modello": "buffalo_l", "invio_prove": "", "lettura_ottica": True,
                "soglia": 0.4, "soglia_sface": 0.363,
                "soglia_minifasnet": 0.5,

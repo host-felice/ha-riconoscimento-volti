@@ -3,6 +3,24 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.20.0
+
+Il pannello di configurazione diceva cose che non si capivano e chiedeva una
+scelta che non e' una scelta.
+
+- **Via la scelta fra i due modelli.** Non e' una scelta adesso, perche' i due
+  viaggiano insieme: ogni confronto li misura tutti e due sulle stesse facce, ed
+  e' l'unico modo per decidere fra loro. E non lo sara' nemmeno dopo, perche'
+  quando la decisione c'e' il modello e' uno solo.
+- **Ogni opzione rimasta ha un nome e una spiegazione nel pannello**, in italiano
+  e in inglese. Prima comparivano i nomi interni: `invio_prove` e `parola` non
+  dicevano niente a nessuno, e sono le due che contano di piu' (dove finiscono i
+  numeri delle prove, e chi puo' aprire la pagina).
+
+Al primo avvio dopo l'aggiornamento il Supervisor puo' scrivere che l'opzione
+`modello` non esiste nello schema: e' il valore vecchio rimasto scritto nella
+configurazione, non fa danno, e sparisce salvando la configurazione una volta.
+
 ## 0.19.2
 
 Due cose sull'aggiornamento stesso, viste guardando perche' la 0.19.1 ci aveva

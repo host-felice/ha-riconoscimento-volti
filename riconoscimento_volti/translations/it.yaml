@@ -1,0 +1,52 @@
+configuration:
+  invio_prove:
+    name: Dove mandare i risultati delle prove
+    description: >-
+      Indirizzo di Home Assistant a cui spedire i numeri di ogni prova: punteggi,
+      dimensioni dei volti, tempi. Fotografie, volti e nomi non partono mai.
+      Lasciato vuoto non si manda niente e le prove restano solo su questa
+      macchina, dove si rileggono da /prove.
+  lettura_ottica:
+    name: Leggere anche il testo stampato sul documento
+    description: >-
+      La banda ottica riempie sei campi su quattordici. Comune e provincia di
+      nascita, luogo di rilascio e residenza sono stampati in chiaro sulla stessa
+      fotografia, e questa opzione li fa leggere. Costa circa otto secondi a
+      fotografia sulle macchine piu' lente, che pero' passano mentre l'ospite si
+      fa il selfie. Da spegnere solo se una macchina non la regge.
+  soglia:
+    name: Da che punteggio in su e' la stessa persona
+    description: >-
+      Vale per il modello principale. Sotto questo numero l'ospite viene
+      respinto, sopra viene riconosciuto. Alzarlo rende il sistema piu' sospettoso
+      e respinge piu' ospiti veri; abbassarlo fa passare piu' facilmente qualcuno
+      che non doveva.
+  soglia_sface:
+    name: Lo stesso numero, per il secondo modello
+    description: >-
+      I due modelli danno punteggi che non si confrontano fra loro, quindi ognuno
+      ha la sua soglia. Questo valore viene dalla valutazione ufficiale di quel
+      modello su molte migliaia di volti: non va abbassato senza un rifiuto vero
+      che lo chieda.
+  soglia_minifasnet:
+    name: Da che punteggio in su davanti c'era una persona vera
+    description: >-
+      Serve a distinguere una persona da una sua fotografia mostrata alla
+      telecamera o da uno schermo. Vale solo per il selfie e per la porta: sulla
+      pagina stampata di un documento la domanda non ha senso.
+  volto_minimo_px:
+    name: Quanto deve essere grande un volto per essere guardato
+    description: >-
+      In pixel di larghezza. I volti piu' piccoli si scartano: sono quasi sempre
+      facce di sfondo o falsi allarmi, e misurarli darebbe punteggi senza senso.
+  parola:
+    name: Parola d'ordine per aprire la pagina
+    description: >-
+      Chi non ce l'ha non entra, ne' dalla pagina ne' dalle chiamate. Sta dentro
+      il link che si manda alla persona, quindi non deve scriverla nessuno.
+      Lasciata vuota, la pagina la apre chiunque conosca l'indirizzo.
+  log_level:
+    name: Quanto deve raccontare il registro
+    description: >-
+      Normalmente "info". Si mette "debug" solo mentre si cerca un guasto, perche'
+      scrive molto di piu'.

@@ -1,0 +1,51 @@
+configuration:
+  invio_prove:
+    name: Where to send test results
+    description: >-
+      Home Assistant address to post the numbers of each test to: scores, face
+      sizes, timings. Photos, faces and names are never sent. Left empty nothing
+      is sent and tests stay on this machine only, readable at /prove.
+  lettura_ottica:
+    name: Also read the printed text on the document
+    description: >-
+      The machine-readable zone fills six fields out of fourteen. Town and
+      province of birth, place of issue and address are printed in plain sight on
+      the same photo, and this option reads them. Costs about eight seconds per
+      photo on the slowest machines, which pass while the guest takes the selfie.
+      Turn off only if a machine cannot cope.
+  soglia:
+    name: Score above which it is the same person
+    description: >-
+      For the main model. Below this the guest is rejected, above it they are
+      recognised. Raising it makes the system more suspicious and rejects more
+      real guests; lowering it lets strangers through more easily.
+  soglia_sface:
+    name: The same number, for the second model
+    description: >-
+      The two models produce scores that cannot be compared with each other, so
+      each has its own threshold. This value comes from that model's official
+      evaluation over many thousands of faces: do not lower it without a real
+      rejection asking for it.
+  soglia_minifasnet:
+    name: Score above which a real person was present
+    description: >-
+      Tells a person apart from a photo of them held up to the camera, or a
+      screen. Applies to the selfie and to the door only: on a printed document
+      page the question makes no sense.
+  volto_minimo_px:
+    name: How large a face must be to be considered
+    description: >-
+      In pixels of width. Smaller faces are discarded: they are almost always
+      background faces or false detections, and measuring them would produce
+      meaningless scores.
+  parola:
+    name: Password to open the page
+    description: >-
+      Without it nobody gets in, neither the page nor the calls. It travels
+      inside the link sent to the person, so nobody has to type it. Left empty,
+      anyone who knows the address can open the page.
+  log_level:
+    name: How much the log should say
+    description: >-
+      Normally "info". Use "debug" only while hunting a fault, as it writes a
+      great deal more.
