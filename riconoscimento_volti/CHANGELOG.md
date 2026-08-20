@@ -3,6 +3,36 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.23.0
+
+Tutto da una prova con la patente: due tentativi, il primo con il giorno di
+nascita letto male e il secondo giusto.
+
+- **La scadenza verifica la data di nascita, e dove non torna la corregge.**
+  Regola detta da Felice: sui documenti italiani, carta d'identita' e patente,
+  **la scadenza cade nello stesso giorno e mese della data di nascita**, cambia
+  solo l'anno. E' lo stesso dato scritto due volte in due punti del documento,
+  cioe' la stessa cosa che fanno le cifre di controllo della banda ottica. Le due
+  letture non sono ugualmente difficili: la scadenza e' stampata piu' grande e si
+  legge meglio, quindi quando non concordano si tiene il giorno e il mese della
+  scadenza. Nella prova che ha fatto nascere la regola sarebbe bastato questo a
+  raddrizzare il primo tentativo.
+- Quando le due concordano **si sono verificate a vicenda** e non compaiono col
+  bordo rosso: non c'e' niente da ricontrollare a mano.
+- **Le letture non si buttavano via al momento giusto.** Sparivano appena si
+  premeva Controlla, quindi al secondo tentativo la scheda usciva coi campi vuoti
+  e senza il testo letto, come se la lettura non fosse mai partita. E' il motivo
+  per cui la patente sembrava non passare mai per la lettura. Adesso restano
+  finche' non si rifa' la fotografia.
+- **Confermare non chiude piu' la porta.** Chi premeva "s&igrave;, i dati sono
+  giusti" e si accorgeva dopo di dover scrivere qualcosa restava con le mani
+  legate: i campi erano bloccati e non si tornava indietro. Adesso basta scrivere
+  in un campo e il tasto si riapre.
+- **Meno spiegazioni ovunque.** Il messaggio piu' lungo era di cinque righe e
+  raccontava perche' un ospite senza documento finirebbe due volte nella lista:
+  adesso dice "mi serve il numero del documento, scrivilo qui sopra". Stessa cura
+  sugli altri.
+
 ## 0.22.0
 
 Da una prova con la patente andata a vuoto: nel modulo compariva solo "Patente"

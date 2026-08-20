@@ -82,26 +82,53 @@ DATE_DELLA_PATENTE = 3
 
 
 def proponi(righe):
-    """I campi che si possono proporre dal testo stampato, e sono pochi apposta.
+    """I campi che si possono proporre dal testo stampato, e come si sanno.
 
     **Si propone solo quello che si riconosce dalla forma**, non quello che sta
     accanto a un'etichetta. Le etichette stampate l'OCR se le sfilaccia
     (`LUOGOFDATADENASOTA`, misurato il 20 agosto 2026) mentre i valori li legge
-    bene: cercare un valore "quello dopo la scritta Nato il" vuol dire appoggiarsi
-    proprio al pezzo che si rompe.
+    bene: cercare "quello dopo la scritta Nato il" vuol dire appoggiarsi proprio
+    al pezzo che si rompe.
 
-    **E si propone solo quando il conto torna esatto.** Una patente porta tre
-    date stampate e sempre in quello stesso ordine: se se ne trovano tre, quelle
-    sono. Se se ne trovano due o quattro e' successo qualcos'altro, e allora non
-    si propone niente invece di indovinare. Un campo vuoto costa all'ospite dieci
-    secondi di scrittura; un campo pieno e sbagliato costa una schedina sbagliata
-    in Questura.
+    **E solo quando il conto torna esatto.** Una patente porta tre date stampate
+    e sempre nello stesso ordine: nascita, rilascio, scadenza. Se se ne trovano
+    tre, quelle sono. Se se ne trovano due o quattro e' successo qualcos'altro, e
+    allora non si propone niente invece di indovinare.
 
-    Quello che esce di qui **non e' verificato da niente**, a differenza dei campi
-    della banda ottica che portano la loro cifra di controllo. Va mostrato
-    all'ospite segnalato come da guardare, non dato per buono.
+    ## La regola che rende verificabile una lettura che non lo era
+
+    Detta da Felice il 20 agosto 2026, e viene da una prova vera: al primo scatto
+    la lettura aveva sbagliato **il giorno di nascita** e letto bene la scadenza.
+
+    Sui documenti italiani, carta d'identita' e patente, **la scadenza cade nello
+    stesso giorno e mese della data di nascita**: cambia solo l'anno. Sono lo
+    stesso dato scritto due volte in due punti diversi del documento, ed e' la
+    stessa cosa che fanno le cifre di controllo della banda ottica.
+
+    E le due letture non sono ugualmente difficili: **la scadenza e' stampata piu'
+    grande**, quindi si legge meglio. Quindi quando le due non concordano si tiene
+    il giorno e il mese della scadenza e si corregge la data di nascita, che e' la
+    lettura debole, tenendole il suo anno.
+
+    Quando invece concordano si sono verificate a vicenda, e allora non si
+    mostrano col bordo rosso: nessuno le deve ricontrollare a mano.
     """
     date = ["%s/%s/%s" % (g, m, a) for g, m, a in DATA.findall(" ".join(righe))]
     if len(date) != DATE_DELLA_PATENTE:
         return {}
-    return {"data_nascita": date[0], "scadenza": date[2]}
+    nascita, scadenza = date[0], date[2]
+    concordano = nascita[:5] == scadenza[:5]
+    if not concordano:
+        # Il giorno e il mese buoni sono quelli della scadenza, l'anno resta
+        # quello della nascita: e' l'unico pezzo che la scadenza non sa.
+        nascita = scadenza[:6] + nascita[6:]
+    return {
+        # La scadenza si e' letta bene di suo, e se le due concordano si sono
+        # anche confermate a vicenda: in tutti e due i casi non c'e' niente da
+        # far ricontrollare.
+        "scadenza": {"valore": scadenza, "verificato": True},
+        # La data di nascita e' verificata solo quando le due concordavano gia'.
+        # Se e' stata corretta resta da guardare: l'anno nessuno lo ha
+        # controllato, e la correzione poggia su una regola, non su una lettura.
+        "data_nascita": {"valore": nascita, "verificato": concordano},
+    }

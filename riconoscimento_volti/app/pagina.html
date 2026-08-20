@@ -364,6 +364,10 @@ let letture = {};
 // letture insieme non vanno a meta' tempo, si ostacolano.
 let codaLetture = Promise.resolve();
 
+// Quante ne stanno girando adesso. Serve solo a dirlo in pagina, e sta a parte
+// da 'letture' perche' quelle **restano**: al secondo Controlla si riusano.
+let inLettura = 0;
+
 function leggiSubito(chiave, blob) {
   const modulo = new FormData();
   modulo.append("immagine", blob, chiave + ".jpg");
@@ -375,6 +379,8 @@ function leggiSubito(chiave, blob) {
   // stampato e' l'unica strada, non un ripiego.
   codaLetture = codaLetture.then(() => chiama("mrz", modulo));
   letture[chiave] = codaLetture;
+  inLettura++;
+  codaLetture.then(() => { inLettura--; aggiornaLettura(); });
   aggiornaLettura();
   letture[chiave].then(esito => { aggiornaLettura(); giudicaLettura(esito); });
 }
@@ -401,24 +407,17 @@ function giudicaLettura(esito) {
   }
   tentativiLettura++;
   dove.innerHTML = tentativiLettura >= TENTATIVI_MAX
-    ? "Non si legge neanche questa. <b>Vai avanti lo stesso</b>: i dati li scriverai "
-      + "tu alla fine, e sono due minuti."
-    : "Non sono riuscito a leggere questo documento. <b>Conviene rifare la foto "
-      + "adesso</b>, pi&ugrave; da vicino e senza riflessi. Non &egrave; per i dati, quelli "
-      + "puoi scriverli tu: &egrave; che una foto troppo scarsa per essere letta di solito "
-      + "lo &egrave; anche per riconoscere il viso, e te ne accorgeresti alla fine, quando "
-      + "rifarla vuol dire ricominciare da capo.";
+    ? "Non si legge neanche questa. Vai avanti lo stesso, i dati li scriverai tu."
+    : "Non riesco a leggere il documento. <b>Rifai la foto adesso</b>, pi&ugrave; da vicino e "
+      + "senza riflessi: una foto cos&igrave; rischia di non bastare neanche per il viso, e "
+      + "dopo ti toccherebbe ricominciare.";
   dove.style.display = "block";
 }
 
 function aggiornaLettura() {
   const dove = document.getElementById("sto_leggendo");
-  const quante = Object.keys(letture).length;
-  dove.textContent = quante
-    ? "Sto leggendo il documento mentre tu vai avanti: " + quante
-      + (quante === 1 ? " fotografia" : " fotografie") + " in lettura. "
-      + "Su una macchina lenta ci mette una ventina di secondi, e non devi aspettarla."
-    : "";
+  const quante = inLettura;
+  dove.textContent = quante ? "Sto leggendo il documento, tu vai pure avanti." : "";
 }
 
 function scatta(chiave) {
@@ -513,10 +512,12 @@ document.getElementById("vai").addEventListener("click", async () => {
 async function aspettaLaLettura() {
   const chiavi = Object.keys(letture);
   if (!chiavi.length) return datiAMano();
-  document.getElementById("sto_leggendo").textContent =
-    "Aspetto che la lettura del documento finisca, ci siamo quasi.";
+  document.getElementById("sto_leggendo").textContent = "Ci siamo quasi.";
+  // **Le letture non si buttano.** Si buttavano qui, e al secondo Controlla non
+  // c'era piu' niente: la scheda usciva coi campi vuoti e senza il testo letto,
+  // come se la lettura non fosse mai partita. Restano finche' non si rifa' la
+  // fotografia, che e' l'unica cosa che le rende vecchie.
   const esiti = await Promise.all(chiavi.map(c => letture[c]));
-  letture = {};
   aggiornaLettura();
   const testo = [];
   for (const e of esiti) if (e && e.testo_stampato) testo.push(...e.testo_stampato);
@@ -667,6 +668,7 @@ function schedaVolto(r) {
 }
 
 const NOMI_CAMPI = {
+  tipo_documento: "tipo di documento",
   cognome: "cognome", nome: "nome", sesso: "sesso",
   data_nascita: "data di nascita", cittadinanza: "cittadinanza",
   numero_documento: "numero documento", numero_supporto: "numero di supporto",
@@ -690,9 +692,7 @@ function datiAMano(fallita) {
   const proposti = (fallita && fallita.campi_proposti) || {};
   const campi = {};
   for (const chiave of DA_MOSTRARE)
-    campi[chiave] = proposti[chiave]
-      ? { valore: proposti[chiave], verificato: false }
-      : { valore: "" };
+    campi[chiave] = proposti[chiave] || { valore: "" };
   campi.tipo_documento = { valore: NOME_DEL_TIPO[tipo] || "" };
   return { campi: campi, a_mano: true, sigla_documento: "senza-mrz",
            quanti_proposti: Object.keys(proposti).length,
@@ -721,9 +721,7 @@ function campiModificabili(r) {
       '<input data-campo="' + chiave + '" value="' +
         (c.valore || "").replace(/"/g, "&quot;") + '"></div>';
   }
-  return campi + '<p class="sotto">Ogni campo qui sopra <b>si pu&ograve; correggere</b>: '
-    + "scrivici sopra. Quello che confermi &egrave; quello che vale, non quello che ha "
-    + "letto la macchina.</p>";
+  return campi + '<p class="sotto">Su ogni campo puoi scrivere. Vale quello che confermi.</p>';
 }
 
 function schedaMrz(r) {
@@ -734,13 +732,8 @@ function schedaMrz(r) {
         ? "Con la patente <b>i dati li scrivi tu</b>, qui sotto."
         : "Non sono riuscito a prendere i dati da solo"
           + (r.perche ? " (" + r.perche + ")" : "") + ", quindi <b>li scrivi tu</b> qui sotto.")
-      + (r.quanti_proposti
-        ? " Qualcosa sono riuscito a leggerlo dal documento e te l&rsquo;ho gi&agrave; scritto, "
-          + "<b>col bordo rosso</b>: quelli guardali uno per uno, perch&eacute; l&igrave; non "
-          + "ho modo di accorgermi da solo se ho letto male."
-        : "")
-      + " Il confronto fra la fotografia del documento e il tuo selfie &egrave; stato fatto "
-      + "come sempre, e lo trovi qui sopra.</p>" +
+      + (r.quanti_proposti ? " Quello che sono riuscito a leggere l&rsquo;ho gi&agrave; scritto." : "")
+      + "</p>" +
       testoStampato(r) + campiModificabili(r) +
       '<button id="conferma">Sì, i dati sono giusti</button></div>';
   }
@@ -757,23 +750,15 @@ function schedaMrz(r) {
       ? '<div class="avviso">Valido fino al ' + v.scade_il + ", cio&egrave; altri " + v.giorni + " giorni.</div>"
       : '<div class="avviso">La scadenza non si giudica: ' + (v.motivo || "non si legge") + ".</div>");
   const avvertenza = r.affidabile
-    ? '<div class="avviso">Le cifre di controllo tornano tutte: questi dati si possono usare come sono. Guardali lo stesso.</div>'
-    : '<div class="avviso">I campi con il bordo rosso non tornano con la loro cifra di controllo: '
-      + "sono stati letti male. Correggili prima di confermare.</div>";
+    ? '<div class="avviso">Guardali lo stesso, poi conferma.</div>'
+    : '<div class="avviso">I campi col bordo rosso li ho letti male. Correggili, poi conferma.</div>';
   return '<div class="passo">' +
     '<div class="verdetto ' + (r.affidabile ? "si" : "no") + '">I dati del documento</div>' +
     "<p>" + r.tipo_documento + " (" + r.sigla_documento + "), formato " + r.formato +
       ", letto in " + r.millisecondi + " ms" +
       (r.seconda_passata ? ", al secondo tentativo" : "") + ". <b>Sono giusti?</b></p>" +
-    (r.tipo_letto_male
-      ? '<div class="avviso">Il tipo di documento era stato letto <b>' + r.tipo_letto_male
-        + "</b>, ed &egrave; sbagliato: quella lettera non ha nessuna cifra di controllo, "
-        + "quindi un errore l&igrave; passa inosservato. Raddrizzato con quello che hai "
-        + "dichiarato tu, che il formato della banda conferma.</div>"
-      : "") +
     (r.il_formato_non_torna
-      ? '<div class="avviso">Attenzione: ' + r.il_formato_non_torna
-        + ". Hai dichiarato un documento e ne hai fotografato un altro.</div>"
+      ? '<div class="avviso">Hai dichiarato un documento e ne hai fotografato un altro.</div>'
       : "") +
     quandoScade + avvertenza + testoStampato(r) + campi +
     '<button id="conferma">Sì, i dati sono giusti</button>' +
@@ -794,10 +779,18 @@ function conferma(bottone) {
       campo.corretto_a_mano = true;
       corretti++;
     }
-    i.disabled = true;
   });
   bottone.textContent = corretti ? "Grazie, ho preso le correzioni" : "Grazie, è tutto";
   bottone.disabled = true;
+  // **Chi tocca ancora un campo riapre il tasto.** Prima confermare bloccava
+  // tutto e non si tornava indietro: chi premeva per primo e si accorgeva dopo
+  // di dover scrivere qualcosa restava con le mani legate.
+  document.querySelectorAll(".campo input").forEach(i => {
+    i.addEventListener("input", () => {
+      bottone.disabled = false;
+      bottone.textContent = "Adesso sono giusti";
+    }, { once: true });
+  });
   // Quanti campi la macchina ha letto male, e nel quaderno e' un numero solo:
   // dice quanto ci si puo' fidare della lettura senza guardare nessun dato.
   if (dati) chiama("corretti", nuovoModulo({ campi_corretti: String(corretti),
@@ -832,9 +825,7 @@ function registra(volto, dati, porta) {
   const id = String(numero || "").replace(/\s/g, "").toUpperCase();
   if (!id) {
     document.getElementById("esito").insertAdjacentHTML("beforeend", avviso(
-      "Non registro nessuno fra gli attesi: senza i dati del documento questo ospite non ha "
-      + "un&rsquo;identit&agrave;, e un ospite senza identit&agrave; finisce nella lista due "
-      + "volte. Nel portale vero i dati qui si scrivono a mano."));
+      "Mi serve il numero del documento. Scrivilo qui sopra e conferma di nuovo."));
     return;
   }
   const nome = [campi.nome && campi.nome.valore, campi.cognome && campi.cognome.valore]
