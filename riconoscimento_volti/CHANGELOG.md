@@ -3,6 +3,26 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.24.0
+
+Da una riga di registro sulla prova con la patente: **24,9 secondi**, righe
+stampate 11, campi proposti 0.
+
+- **Sulla patente la banda ottica non si cerca piu'.** Non ce l'ha, e lo si sa
+  prima di scattare perche' l'ospite lo ha dichiarato. Cercarla lo stesso
+  costava le **due passate** della lettura, la seconda a piu' pixel apposta per
+  riprovare quando la prima fallisce: su un documento senza banda sono due
+  tentativi buttati per definizione, ed erano la fetta grossa di quei 25
+  secondi.
+- Nel registro compare anche **quante date sono state trovate** nel testo
+  stampato. E' il numero che spiega perche' non si e' proposto niente: la regola
+  vuole tre date esatte, e senza questo numero restava da indovinare quante ne
+  avesse viste davvero.
+
+Le 11 righe lette dicono la cosa importante: **la lettura del testo stampato
+funziona**. Quello che non ha funzionato e' la regola che da quel testo ricava i
+campi.
+
 ## 0.23.0
 
 Tutto da una prova con la patente: due tentativi, il primo con il giorno di

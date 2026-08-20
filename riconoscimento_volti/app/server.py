@@ -26,7 +26,7 @@ import ottico
 import registro
 import volti
 
-VERSIONE = "0.23.0"
+VERSIONE = "0.24.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 # **"modello" non e' piu' un'opzione del pannello**, e non lo sara' nemmeno dopo.
@@ -972,9 +972,14 @@ def leggi_mrz():
     soli che si possono scrivere nel modulo senza farli ricontrollare a mano.
     """
     partenza = time.time()
+    dichiarato = _campo("tipo_dichiarato")
     try:
         esito = mrz.analizza_altrove(_immagine("immagine"),
-                                     anche_ottico=bool(OPZIONI["lettura_ottica"]))
+                                     anche_ottico=bool(OPZIONI["lettura_ottica"]),
+                                     # La patente la banda ottica non ce l'ha:
+                                     # non si cerca, e si risparmiano le due
+                                     # passate della lettura.
+                                     anche_banda=dichiarato != "patente")
     except mrz.NessunaMRZ as guaio:
         # **Una lettura che non riesce lascia una riga come tutte le altre.**
         # Prima non ne lasciava nessuna, perche' l'errore saltava il punto in cui
@@ -984,15 +989,18 @@ def leggi_mrz():
         testo = getattr(guaio, "testo_stampato", [])
         proposti = ottico.proponi(testo)
         millisecondi = _millisecondi(partenza)
-        log.info("mrz: non letta (%s), righe stampate %d, campi proposti %d, %d ms, memoria %s MB",
-                 guaio, len(testo), len(proposti), millisecondi, _memoria_mb())
+        # Quante date sono state trovate nel testo: e' il numero che dice perche'
+        # non si e' proposto niente, e senza di lui resta da indovinare.
+        log.info("mrz: non letta (%s), righe stampate %d, date %d, campi proposti %d, %d ms, memoria %s MB",
+                 guaio, len(testo), len(ottico.DATA.findall(" ".join(testo))),
+                 len(proposti), millisecondi, _memoria_mb())
         _registra("mrz", {"formato": None, "affidabile": False,
                           "righe_stampate": len(testo), "quanti_proposti": len(proposti),
                           "millisecondi": millisecondi})
         return jsonify({"errore": str(guaio), "testo_stampato": testo,
                         "campi_proposti": proposti,
                         "millisecondi": millisecondi}), 422
-    esito = _raddrizza_il_tipo(esito, _campo("tipo_dichiarato"))
+    esito = _raddrizza_il_tipo(esito, dichiarato)
     # Nel campo che l'ospite legge ci va il nome per esteso, non la lettera
     # dello standard: "Passaporto", non "P". La lettera resta in
     # 'sigla_documento', dove serve.

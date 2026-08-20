@@ -318,7 +318,7 @@ def analizza(dati_binari):
     raise guaio or NessunaMRZ("nessuna zona leggibile a macchina trovata nella foto")
 
 
-def _in_disparte(scrivi_qui, dati_binari, anche_ottico):
+def _in_disparte(scrivi_qui, dati_binari, anche_ottico, anche_banda):
     """Il lavoro visto da dentro il processo usa e getta: legge, risponde, muore.
 
     Le due letture stanno **qui dentro tutte e due**, e non e' per comodita': la
@@ -332,12 +332,20 @@ def _in_disparte(scrivi_qui, dati_binari, anche_ottico):
     niente da leggere: e' quello su cui il testo stampato e' l'unica strada.
     """
     esito = guaio = None
-    try:
-        esito = analizza(dati_binari)
-    except NessunaMRZ as questo:
-        guaio = ("nessuna", str(questo))
-    except Exception as questo:
-        guaio = ("assente", "la lettura del documento e' fallita: %s" % questo)
+    if anche_banda:
+        try:
+            esito = analizza(dati_binari)
+        except NessunaMRZ as questo:
+            guaio = ("nessuna", str(questo))
+        except Exception as questo:
+            guaio = ("assente", "la lettura del documento e' fallita: %s" % questo)
+    else:
+        # **Sulla patente la banda ottica non si cerca affatto.** Non ce l'ha, e
+        # cercarla comunque costava le due passate della lettura, la seconda a
+        # piu' pixel apposta per riprovare quando la prima fallisce: due
+        # tentativi buttati per definizione. Misurato su un N4000 il 20 agosto
+        # 2026, patente e testo stampato insieme facevano 24,9 secondi.
+        guaio = ("nessuna", "la patente non ha la banda ottica")
     testo = []
     if anche_ottico:
         try:
@@ -356,7 +364,8 @@ def _in_disparte(scrivi_qui, dati_binari, anche_ottico):
         scrivi_qui.close()
 
 
-def analizza_altrove(dati_binari, secondi=SECONDI_DI_ATTESA, anche_ottico=False):
+def analizza_altrove(dati_binari, secondi=SECONDI_DI_ATTESA, anche_ottico=False,
+                     anche_banda=True):
     """La stessa lettura, fatta da un processo che subito dopo muore.
 
     Il motore della MRZ si prende quasi un giga e non lo restituisce: non e' un
@@ -368,7 +377,7 @@ def analizza_altrove(dati_binari, secondi=SECONDI_DI_ATTESA, anche_ottico=False)
     """
     leggi_qui, scrivi_qui = _CONTESTO.Pipe(duplex=False)
     figlio = _CONTESTO.Process(target=_in_disparte,
-                               args=(scrivi_qui, dati_binari, anche_ottico),
+                               args=(scrivi_qui, dati_binari, anche_ottico, anche_banda),
                                daemon=True)
     figlio.start()
     scrivi_qui.close()
