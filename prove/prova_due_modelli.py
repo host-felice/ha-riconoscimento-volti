@@ -191,7 +191,7 @@ for nome in ("FELICE", "PADRE"):
     controlla("nessun nome %r" % nome, nome not in crudo)
 ultima = [r for r in righe if r["chiamata"] == "riconosci"][-1]
 controlla("ma i punteggi dell'altro modello si sono salvati",
-          "altri_modelli" in ultima and "punteggi" in ultima,
+          "altri_modelli" in ultima and "tutti" in ultima,
           str(sorted(ultima.keys()))[:120])
 
 print("\n9. nel registro dell'add-on non entra nessun nome, ma si legge chi per numero")

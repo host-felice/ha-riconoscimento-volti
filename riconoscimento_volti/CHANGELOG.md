@@ -3,6 +3,33 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.17.0
+
+- **Il quaderno delle prove non sapeva cosa stava misurando.** Segnava ogni
+  punteggio ma non se le due facce **dovevano** essere della stessa persona, e
+  le somme buttavano tutto in un mucchio solo. Da un mucchio solo si legge una
+  cosa sola, quanto sono alti i punteggi, e non e' quella che decide: il numero
+  che decide fra i due modelli e' **la distanza fra il peggiore dei confronti
+  giusti e il piu' alto fra gli estranei**. Adesso i due mondi si contano
+  separati e quella distanza si legge da `/prove`.
+- **Chi prova alla porta dice chi c'e' davanti alla telecamera**, spuntandolo
+  fra gli attesi, e c'e' anche la casella "nessuno di loro". E' l'unica domanda
+  in piu' che il banco di prova fa, e senza di lei una raffica alla porta era
+  una manciata di numeri di cui non si sapeva quale doveva combaciare.
+- **E' anche l'unico posto da cui arrivano gli estranei.** Chi prova sul proprio
+  documento e sul proprio selfie produce solo confronti che devono combaciare:
+  di persone diverse non ne arriva nemmeno uno, e meta' della misura non si fa.
+  Alla porta ogni faccia si confronta con **tutti** gli attesi, quindi ogni
+  raffica regala un confronto giusto e tutti gli estranei degli altri.
+- **Le prove senza etichetta si scartano e si contano.** Un punteggio di cui non
+  si sa se doveva combaciare non e' una misura, e messo nel mucchio rovina anche
+  gli altri. Quante ne sono state scartate si legge accanto alle somme: un
+  numero che cresce e' un guasto da vedere, non un dettaglio.
+- Nelle somme compaiono anche **gli errori veri**, contro la soglia di quel
+  giorno: ospiti respinti per sbaglio ed estranei fatti passare. Un margine
+  negativo vuol dire che i due mondi si sono gia' sovrapposti, e allora non c'e'
+  soglia che tenga: e' il modello.
+
 ## 0.16.1
 
 - **La pagina non si mette piu' in cache**, e serviva. Il 19 agosto 2026 due

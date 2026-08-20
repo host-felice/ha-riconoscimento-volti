@@ -66,6 +66,7 @@
   .dettagli td { padding: .1rem .6rem .1rem 0; vertical-align: top; }
   .campo { display: flex; align-items: center; gap: .6rem; margin-bottom: .5rem; }
   .campo label { flex: 0 0 9.5rem; font-size: .9rem; color: #6a6660; }
+  #chi_c_e label { display: block; margin: .2rem 0; font-size: .95rem; }
   .campo input {
     flex: 1; min-width: 0; padding: .5rem .6rem; font-size: 1rem;
     border: 1px solid #c9c3b8; border-radius: 8px; background: #fff; color: inherit;
@@ -173,6 +174,7 @@
 <div class="passo" id="passo_porta">
   <h2>Alla porta</h2>
   <p id="chi_e_atteso">Nessun ospite registrato: fai prima il controllo qui sopra, e chi risulta sé stesso finisce fra gli attesi di questa prenotazione.</p>
+  <div id="chi_c_e"></div>
   <div class="bottoni">
     <button data-camera="porta" disabled id="apri_porta">Apri la fotocamera</button>
     <button class="chiaro" id="svuota">Svuota la lista</button>
@@ -387,6 +389,11 @@ document.getElementById("vai").addEventListener("click", async () => {
   // Qui si sta misurando, quindi si chiedono i punteggi di tutti e due i
   // modelli sulla stessa faccia: e' l'unico confronto che vuol dire qualcosa.
   perVolto.append("anche_l_altro", "si");
+  // Qui le due facce sono della stessa persona per come e' fatto il banco di
+  // prova: il tuo documento e il tuo selfie. Non e' una domanda da fare, ma
+  // senza scriverlo il quaderno non sa distinguere questi confronti da quelli
+  // fra persone diverse, e la distanza fra i due mondi non si calcola piu'.
+  perVolto.append("stessa_persona", "si");
   perVolto.append("consenso_invio", consenso === "si" ? "si" : "no");
   // **Prima il documento, poi i volti**, e non piu' i due insieme. Un documento
   // scaduto non e' un documento di identificazione, quindi il confronto non si
@@ -660,6 +667,36 @@ function scriviAttesi() {
       + ". Tieni il telefono in alto, come la telecamera sopra la porta, e mettetevi davanti anche in più di uno. "
       + "La lista vive solo in questo telefono e si cancella da sola dopo un giorno."
     : "Nessun ospite registrato: fai prima il controllo qui sopra, e chi risulta sé stesso finisce fra gli attesi di questa prenotazione.";
+  scriviChiCE();
+}
+
+// Chi c'e' davanti alla telecamera, da spuntare prima di scattare. E' l'unica
+// domanda in piu' che il banco di prova fa, e senza di lei tutta la raffica
+// diventa inutilizzabile: il quaderno vedrebbe una manciata di punteggi senza
+// sapere quale doveva combaciare e quali no.
+//
+// Costruita con il DOM e non con innerHTML: i nomi arrivano dalla MRZ, dove il
+// carattere di riempimento e' proprio '<'.
+function scriviChiCE() {
+  const dove = document.getElementById("chi_c_e");
+  dove.textContent = "";
+  if (!attesi.length) return;
+  const p = document.createElement("p");
+  p.textContent = "Chi c'è davanti alla telecamera? Spunta chi si mette davvero davanti: "
+    + "serve a sapere quali punteggi dovevano combaciare e quali no.";
+  dove.append(p);
+  attesi.concat([{ nome: "nessuno di loro, davanti c'è uno sconosciuto" }])
+        .forEach((a, i) => {
+    const eti = document.createElement("label");
+    const casella = document.createElement("input");
+    casella.type = "checkbox";
+    casella.className = "presente";
+    // Il posto nella lista, uguale a quello che il server rilegge. Lo zero e'
+    // lo sconosciuto: nessun atteso, quindi tutti i confronti sono estranei.
+    casella.value = String(i < attesi.length ? i + 1 : 0);
+    eti.append(casella, " " + a.nome);
+    dove.append(eti);
+  });
 }
 scriviAttesi();
 
@@ -674,6 +711,14 @@ document.getElementById("svuota").addEventListener("click", () => {
 async function raffica() {
   const video = document.getElementById("mirino_porta").querySelector("video");
   const esito = document.getElementById("esito_porta");
+  const spuntati = [...document.querySelectorAll(".presente:checked")].map(c => Number(c.value));
+  if (!spuntati.length) {
+    spegni("porta");
+    esito.innerHTML = avviso("Dimmi prima chi c&rsquo;&egrave; davanti alla telecamera, "
+      + "qui sopra. Senza, i punteggi di questa prova non si possono usare per confrontare "
+      + "i due modelli, e la prova sarebbe sprecata.");
+    return;
+  }
   const scatti = [];
   for (let i = 0; i < 3; i++) {
     esito.innerHTML = "<p>scatto " + (i + 1) + " di 3...</p>";
@@ -688,6 +733,9 @@ async function raffica() {
   // Anche qui si sta misurando: alla porta le facce arrivano di lontano e di
   // sbieco, ed e' il caso in cui i due modelli possono dire cose diverse.
   dati.append("anche_l_altro", "si");
+  // Lo zero, lo sconosciuto, sparisce qui: una lista vuota vuol dire proprio
+  // "nessuno degli attesi era davanti", che e' un'informazione e non un buco.
+  dati.append("presenti", JSON.stringify(spuntati.filter(n => n > 0)));
   dati.append("consenso_invio", consenso === "si" ? "si" : "no");
   const r = await chiama("riconosci", dati);
   esito.innerHTML = schedaPorta(r);

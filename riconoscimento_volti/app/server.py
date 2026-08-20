@@ -24,7 +24,7 @@ import mrz
 import registro
 import volti
 
-VERSIONE = "0.16.1"
+VERSIONE = "0.17.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 PREDEFINITE = {"modello": "buffalo_l", "invio_prove": "", "soglia": 0.4, "soglia_sface": 0.363,
@@ -365,9 +365,54 @@ def _consenso():
     corpo = _corpo_json()
     valore = (corpo.get("consenso_invio") if corpo is not None
               else request.form.get("consenso_invio"))
+    return _si_o_no(valore)
+
+
+def _si_o_no(valore):
+    """Un si'/no dalla richiesta, con il None che resta None e non diventa un no."""
+    return None if valore is None else str(valore).lower() in ("si", "1", "true", "yes", "on")
+
+
+def _campo(nome):
+    """Un campo della richiesta, dal corpo JSON o dal modulo. None se non c'e'."""
+    corpo = _corpo_json()
+    valore = corpo.get(nome) if corpo is not None else request.form.get(nome)
+    return None if valore in (None, "") else valore
+
+
+def _stessa_persona():
+    """Se chi prova dice che le due facce sono della stessa persona.
+
+    **Tre stati, non due**, come per il consenso: si', no, e non detto. Non detto
+    non e' un forse da indovinare: e' una riga che le somme scartano, perche' un
+    punteggio senza questa etichetta non dice se il sistema ha indovinato o ha
+    sbagliato, e messo nel mucchio rovina anche gli altri.
+    """
+    return _si_o_no(_campo("stessa_persona"))
+
+
+def _presenti():
+    """Chi c'era davvero davanti alla telecamera, per posto nella lista degli attesi.
+
+    Numeri e mai nomi: nel quaderno i nomi non entrano, e il posto lo sa
+    rileggere solo chi ha mandato la lista.
+
+    La lista vuota **non e' la stessa cosa** del campo mancante, ed e' il caso
+    piu' prezioso: vuol dire che davanti c'era uno sconosciuto, quindi tutti i
+    punteggi di quella prova sono estranei. Il campo mancante vuol dire che
+    nessuno lo ha detto, e la prova si scarta.
+    """
+    valore = _campo("presenti")
     if valore is None:
         return None
-    return str(valore).lower() in ("si", "1", "true", "yes", "on")
+    if isinstance(valore, str):
+        try:
+            valore = json.loads(valore)
+        except ValueError:
+            return None
+    if not isinstance(valore, list):
+        return None
+    return [int(v) for v in valore if isinstance(v, int) or str(v).isdigit()]
 
 
 def _registra(chiamata, risposta):
@@ -640,7 +685,10 @@ def confronta():
         "altri_modelli": altri,
         "millisecondi": _millisecondi(partenza),
     }
-    risposta["prova_mandata"] = _registra("confronta", risposta)
+    # L'etichetta va nel quaderno e non nella risposta: serve a leggere i
+    # numeri fra un mese, non a chi sta guardando il suo punteggio adesso.
+    risposta["prova_mandata"] = _registra(
+        "confronta", dict(risposta, stessa_persona=_stessa_persona()))
     risposta["vettore_selfie"] = selfie["vettore"]
     return jsonify(risposta)
 
@@ -841,7 +889,7 @@ def riconosci():
     # risposta data prima del confronto: la porta non e' una seconda domanda.
     risposta["prova_mandata"] = _registra(
         "riconosci", dict(risposta,
-                          punteggi=[p["somiglianza"] for p in risposta["tutti"]],
+                          presenti=_presenti(),
                           quanti_riconosciuti=len(risposta["riconosciuti"])))
     return jsonify(risposta)
 

@@ -108,39 +108,103 @@ def accorcia():
     return tagliate
 
 
-def somme():
-    """Le somme tirate: quante prove, come sono andate, modello per modello.
+def _statistica(punti):
+    """Come si distribuisce un mucchio di punteggi. Vuoto vuol dire niente."""
+    if not punti:
+        return None
+    punti = sorted(punti)
+    return {"quante": len(punti), "peggiore": round(punti[0], 4),
+            "mediana": round(punti[len(punti) // 2], 4),
+            "migliore": round(punti[-1], 4)}
 
-    E' la risposta alla domanda vera, che non e' "cosa e' successo il 3 ottobre"
-    ma "con quale dei due modelli sbagliamo di meno".
+
+def coppie(riga):
+    """(modello, punteggio, doveva_combaciare, soglia) per ogni confronto della riga.
+
+    **Una riga senza l'etichetta non ne produce nessuna**, ed e' il punto di
+    tutta questa funzione. Un punteggio di cui non si sa se doveva combaciare
+    non e' una misura: buttato nel mucchio insieme agli altri fa sparire proprio
+    la distanza fra i due mondi, che e' il numero per cui il quaderno esiste.
+
+    Le due etichette arrivano da due posti diversi perche' le due prove sono
+    diverse. Nel confronto documento-selfie chi prova dice se le due facce sono
+    sue. Alla porta dice chi c'e' davanti alla telecamera, per posto nella lista
+    e mai per nome: da li' escono un confronto giusto e tutti gli estranei degli
+    altri attesi, che e' l'unico posto da cui gli estranei arrivano davvero.
+    """
+    chiamata = riga.get("chiamata")
+    if chiamata == "confronta":
+        stessa = riga.get("stessa_persona")
+        if stessa is None or "somiglianza" not in riga:
+            return
+        yield riga.get("modello", "?"), riga["somiglianza"], bool(stessa), riga.get("soglia")
+        for altro, d in (riga.get("altri_modelli") or {}).items():
+            if isinstance(d, dict) and "somiglianza" in d:
+                yield altro, d["somiglianza"], bool(stessa), d.get("soglia")
+    elif chiamata == "riconosci":
+        presenti = riga.get("presenti")
+        if presenti is None:
+            return
+        presenti = set(presenti)
+        # Il modello in uso piu' ognuno degli altri che si e' potuto misurare.
+        esiti = [(riga.get("modello", "?"), riga)] + [
+            (altro, d) for altro, d in (riga.get("altri_modelli") or {}).items()
+            if isinstance(d, dict) and d.get("misurato")]
+        for modello, esito in esiti:
+            for p in esito.get("tutti") or []:
+                if isinstance(p, dict) and "posizione" in p and "somiglianza" in p:
+                    yield (modello, p["somiglianza"],
+                           p["posizione"] in presenti, esito.get("soglia"))
+
+
+def somme():
+    """Le somme tirate, e il numero che decide sta in fondo.
+
+    La domanda non e' "con quale modello i punteggi sono piu' alti": e' **quanto
+    spazio resta fra il peggiore dei confronti che dovevano combaciare e il
+    migliore di quelli che non dovevano**. Un modello che alza tutti e due i
+    mondi insieme non ha guadagnato niente, e finche' le due meta' stavano nello
+    stesso mucchio quella distanza non si poteva nemmeno calcolare.
+
+    Le righe che non portano l'etichetta si contano a parte invece di sparire:
+    un mucchio di prove scartate e' un guasto da vedere, non un dettaglio.
     """
     righe = leggi()
     per_modello = {}
-    for r in righe:
-        if r.get("chiamata") != "confronta" or "somiglianza" not in r:
+    senza_etichetta = 0
+    for riga in righe:
+        if riga.get("chiamata") not in ("confronta", "riconosci"):
             continue
-        m = r.get("modello", "?")
-        per_modello.setdefault(m, []).append(r)
-        # Anche il punteggio dell'altro modello sulla stessa faccia, quando c'e':
-        # e' il confronto che vale, perche' e' fatto sullo stesso scatto.
-        for altro, d in (r.get("altri_modelli") or {}).items():
-            finto = dict(r)
-            finto["somiglianza"] = d["somiglianza"]
-            finto["soglia"] = d["soglia"]
-            finto["verificato"] = d["verificato"]
-            per_modello.setdefault(altro, []).append(finto)
+        trovate = list(coppie(riga))
+        if not trovate:
+            senza_etichetta += 1
+            continue
+        for modello, punteggio, giusta, soglia in trovate:
+            d = per_modello.setdefault(modello, {"giusti": [], "estranei": [],
+                                                 "respinti": 0, "passati": 0})
+            d["giusti" if giusta else "estranei"].append(punteggio)
+            if soglia is None:
+                continue
+            if giusta and punteggio < soglia:
+                d["respinti"] += 1
+            elif not giusta and punteggio >= soglia:
+                d["passati"] += 1
 
     fuori = {}
-    for m, prove in per_modello.items():
-        punti = sorted(p["somiglianza"] for p in prove)
-        passati = [p for p in prove if p.get("verificato")]
-        fuori[m] = {
-            "prove": len(prove),
-            "passate": len(passati),
-            "peggiore": punti[0],
-            "mediana": punti[len(punti) // 2],
-            "migliore": punti[-1],
-            "sul_filo": sum(1 for p in prove
-                            if 0 <= p["somiglianza"] - p.get("soglia", 0) < 0.05),
+    for modello, d in per_modello.items():
+        giusti, estranei = _statistica(d["giusti"]), _statistica(d["estranei"])
+        fuori[modello] = {
+            "giusti": giusti,
+            "estranei": estranei,
+            # Quanto manca al primo errore. **Negativo vuol dire che i due mondi
+            # si sono gia' sovrapposti**: da qualche parte, con qualunque soglia
+            # si scelga, o si respinge un ospite vero o si fa passare uno
+            # sconosciuto. Non e' una soglia da spostare, e' il modello.
+            "margine": (round(giusti["peggiore"] - estranei["migliore"], 4)
+                        if giusti and estranei else None),
+            # Gli errori veri, contro la soglia che c'era quel giorno.
+            "ospiti_respinti_per_sbaglio": d["respinti"],
+            "estranei_fatti_passare": d["passati"],
         }
-    return {"prove_in_tutto": len(righe), "confronti": fuori}
+    return {"prove_in_tutto": len(righe), "confronti": fuori,
+            "righe_senza_etichetta": senza_etichetta}
