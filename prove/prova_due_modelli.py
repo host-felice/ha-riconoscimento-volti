@@ -83,18 +83,18 @@ def righe_del_quaderno():
 
 
 print("\n1. l'ospite di ieri, con un vettore solo: la porta risponde, l'altro dice perche' no")
-attesi_vecchi = [{"nome": "FELICE", "vettore": _vettore("felice", "buffalo_l")}]
+attesi_vecchi = [{"nome": "MARIO", "vettore": _vettore("felice", "buffalo_l")}]
 codice, r = alla_porta(attesi_vecchi)
 controlla("la risposta arriva", codice == 200, str(codice))
 controlla("riconosciuto con il modello in uso",
-          [x["nome"] for x in r["riconosciuti"]] == ["FELICE"], str(r.get("riconosciuti")))
+          [x["nome"] for x in r["riconosciuti"]] == ["MARIO"], str(r.get("riconosciuti")))
 altro = r["altri_modelli"].get("sface", {})
 controlla("l'altro modello dice che non si e' potuto misurare", altro.get("misurato") is False)
 controlla("e dice perche'", "vettore" in altro.get("motivo", ""), altro.get("motivo", ""))
 
 print("\n2. l'ospite di oggi, un vettore per modello: si misurano tutti e due")
 attesi_nuovi = [
-    {"nome": "FELICE", "vettori": {"buffalo_l": _vettore("felice", "buffalo_l"),
+    {"nome": "MARIO", "vettori": {"buffalo_l": _vettore("felice", "buffalo_l"),
                                    "sface": _vettore("felice", "sface")}},
     {"nome": "PADRE", "vettori": {"buffalo_l": _vettore("padre", "buffalo_l"),
                                   "sface": _vettore("padre", "sface")}},
@@ -102,12 +102,12 @@ attesi_nuovi = [
 codice, r = alla_porta(attesi_nuovi)
 controlla("la risposta arriva", codice == 200, str(codice))
 controlla("il modello in uso riconosce tutti e due",
-          sorted(x["nome"] for x in r["riconosciuti"]) == ["FELICE", "PADRE"],
+          sorted(x["nome"] for x in r["riconosciuti"]) == ["MARIO", "PADRE"],
           str([x["somiglianza"] for x in r["riconosciuti"]]))
 altro = r["altri_modelli"]["sface"]
 controlla("l'altro modello e' stato misurato", altro.get("misurato") is True)
 controlla("l'altro riconosce tutti e due",
-          sorted(x["nome"] for x in altro["riconosciuti"]) == ["FELICE", "PADRE"],
+          sorted(x["nome"] for x in altro["riconosciuti"]) == ["MARIO", "PADRE"],
           str([x["somiglianza"] for x in altro["riconosciuti"]]))
 controlla("e usa la sua soglia, non quella dell'altro",
           altro["soglia"] == 0.363 and r["soglia"] == 0.4,
@@ -130,13 +130,13 @@ codice, r = alla_porta(attesi_nuovi, anche_l_altro="no")
 controlla("nessun secondo giro", r["altri_modelli"] == {}, str(r["altri_modelli"]))
 
 print("\n5. l'atteso senza il vettore del modello chiesto: errore chiaro, non un numero falso")
-solo_sface = [{"nome": "FELICE", "vettori": {"sface": _vettore("felice", "sface")}}]
+solo_sface = [{"nome": "MARIO", "vettori": {"sface": _vettore("felice", "sface")}}]
 codice, r = alla_porta(solo_sface, modello="buffalo_l")
 controlla("la richiesta viene respinta", codice == 400, str(codice))
 controlla("e il motivo si legge", "buffalo_l" in r.get("errore", ""), r.get("errore", ""))
 
 print("\n6. l'atteso senza nessun vettore: respinto in ingresso")
-codice, r = alla_porta([{"nome": "FELICE"}])
+codice, r = alla_porta([{"nome": "MARIO"}])
 controlla("la richiesta viene respinta", codice == 400, str(codice))
 controlla("e il motivo nomina i due campi",
           "vettore" in r.get("errore", "") and "vettori" in r.get("errore", ""), r.get("errore", ""))
@@ -187,7 +187,7 @@ for vietato in ("vettore", "vettori", "vettore_selfie", "assomiglia_a",
     controlla("nessun campo %r" % vietato, vietato not in nomi_campi)
 controlla("nessun vettore travestito da lista di numeri", not liste_lunghe(righe))
 crudo = json.dumps(righe, ensure_ascii=False)
-for nome in ("FELICE", "PADRE"):
+for nome in ("MARIO", "PADRE"):
     controlla("nessun nome %r" % nome, nome not in crudo)
 ultima = [r for r in righe if r["chiamata"] == "riconosci"][-1]
 controlla("ma i punteggi dell'altro modello si sono salvati",
@@ -216,7 +216,7 @@ alla_porta(attesi_nuovi, chi="estranea")
 server.log.removeHandler(orecchio)
 scritto = "\n".join(orecchio.righe)
 controlla("il registro ha scritto", "riconosci" in scritto, "%d righe" % len(orecchio.righe))
-for nome in ("FELICE", "PADRE"):
+for nome in ("MARIO", "PADRE"):
     controlla("nessun nome %r nel registro" % nome, nome not in scritto)
 controlla("ma chi si legge, per numero", "#1" in scritto,
           [r for r in orecchio.righe if "riconosci" in r][0][:120])

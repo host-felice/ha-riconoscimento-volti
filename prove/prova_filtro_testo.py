@@ -34,13 +34,13 @@ for nome in ("daMostrare", "nudo", "righeDaMandare"):
 CASO = '''
 let tipo = "carta";
 const carta = {
-  campi: { cognome: { valore: "MARRA" }, nome: { valore: "FELICE" },
+  campi: { cognome: { valore: "ROSSI" }, nome: { valore: "MARIO" },
            sesso: { valore: "M" }, data_nascita: { valore: "01/03/1980" },
            comune_nascita: { valore: "" }, numero_documento: { valore: "CA00000AB" },
            scadenza: { valore: "01/03/2035" }, comune_emissione: { valore: "TERAMO (TE)" } },
   testo_stampato: ["REPUBBLICA ITALIANA", "CA00000AB", "MINISTERO DELL'INTERNO",
     "CARTA DIIDENTITA /IDENTITY CARD", "IT", "COMUNFOI/MUNICIPALITY", "TERAMO",
-    "COGNOME/SURNAME", "4RSH", "MARRA", "NOME/NAME", "FELICE", "LUOGOEDATADINASCITA",
+    "COGNOME/SURNAME", "4RSH", "ROSSI", "NOME/NAME", "MARIO", "LUOGOEDATADINASCITA",
     "PLACEANDDATEOFBIRTH", "MESSINA(ME)01.03.1980", "SESSO", "STATURA", "CITTADINANZA",
     "XGS", "HEIGHT", "NATIONALITY", "168", "ITA", "EMISSIONE/ISSUING", "SCADENZA/EXPIRY",
     "01.03.2024", "01.03.2035", "FIRMADELTITOLARE", "HOLDER'SSIGNATURE", "785146"]
@@ -58,7 +58,7 @@ mandate = json.loads(uscita.stdout.strip().splitlines()[-1])
 os.remove(dove)
 
 # quello che la banda ottica ha gia' letto bene non serve a nessuno
-for restare in ("MARRA", "FELICE", "CA00000AB", "TERAMO", "01.03.2035", "168"):
+for restare in ("ROSSI", "MARIO", "CA00000AB", "TERAMO", "01.03.2035", "168"):
     assert restare not in mandate, "non doveva partire: " + restare
 
 # la riga del campo mancante parte, anche se porta con se' una data buona: senza

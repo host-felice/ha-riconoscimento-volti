@@ -45,7 +45,13 @@ ELENCO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tabelle", "co
 # cominciare a confondere due comuni diversi.
 TETTO = 2
 
-PROVINCIA = re.compile(r"[(\[]\s*([A-Za-z]{2})\s*(?:[)\]]|$|(?=[^A-Za-z]))")
+PROVINCIA = re.compile(r"[(（[［]\s*([A-Za-z]{2})\s*(?:[)\]）］]|$|(?=[^A-Za-z]))")
+# **Le parentesi larghe valgono come quelle normali.** La lettura, davanti a una
+# stampa spaziata, restituisce i caratteri a larghezza doppia delle scritture
+# orientali: letto davvero il 20 agosto 2026, `MESSINA（ME)`, con la prima
+# parentesi larga e la seconda no. Cercando solo quelle normali la sigla della
+# provincia non si vedeva, e senza provincia la tolleranza si spegne: MESSINA non
+# veniva piu' riconosciuta ne' sulla carta d'identita' ne' sulla patente.
 # **La parentesi che chiude puo' mancare**, perche' la lettura ogni tanto se la
 # mangia. Non basta renderla facoltativa: `(TERAMO` diventerebbe la provincia TE
 # piu' un avanzo. Si accetta solo se dopo le due lettere non c'e' un'altra

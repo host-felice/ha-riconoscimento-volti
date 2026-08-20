@@ -3,6 +3,27 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.45.0
+
+- **Le parentesi larghe valgono come quelle normali.** Il comune di nascita
+  spariva sia dalla carta d'identita' sia dalla patente, e il testo mandato dice
+  perche': davanti a una stampa spaziata la lettura tira fuori i caratteri a
+  larghezza doppia delle scritture orientali. Era uscito `MESSINA（ME)`, con la
+  prima parentesi larga e la seconda normale. Cercando solo quelle normali la
+  sigla della provincia non si vedeva, e **senza provincia la tolleranza si
+  spegne**, quindi MESSINA non veniva piu' riconosciuta. Adesso valgono in tutte
+  e quattro le combinazioni, larga con normale, normale con larga, tutte e due
+  larghe, tutte e due normali.
+
+  Trovato guardando il testo che Felice ha mandato dalla pagina, che e' il
+  meccanismo aggiunto due versioni fa. Senza, sarebbe stato un altro giro di
+  tentativi.
+
+- **Fuori i dati personali dai controlli**, che stanno su un repository pubblico:
+  l'indirizzo di casa, il codice fiscale, i numeri dei documenti veri e i nomi.
+  Al loro posto valori inventati della stessa forma, che e' l'unica cosa che ai
+  controlli serviva.
+
 ## 0.44.0
 
 - **Un campo che manca del tutto adesso si disegna vuoto, invece di sparire.**
