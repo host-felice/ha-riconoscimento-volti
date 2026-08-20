@@ -3,6 +3,28 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.43.0
+
+- **Del testo letto parte solo quello che non si e' saputo usare.** Da ogni riga
+  si tolgono i pezzi gia' riconosciuti, e se non resta niente la riga non parte:
+  il cognome, il nome, il numero del documento e le date che la banda ottica ha
+  gia' letto bene non servono a capire perche' un **altro** campo e' rimasto
+  vuoto. Misurato sulle righe vere di una carta d'identita': partono **18 righe
+  su 30**, e restano a casa tutti i dati che avevano gia' funzionato.
+
+  Non bastava buttare le righe che contengono qualcosa di buono, perche' una
+  riga puo' contenerne due: `MESSINA(ME)01.03.1980` porta insieme la data, letta
+  bene, e il comune di nascita, che e' quello che non e' uscito. Buttandola si
+  butterebbe proprio la riga che serve.
+
+  **Il taglio si fa sul telefono, prima di mandare.** Quello che non serve non
+  parte affatto, invece di partire e poi essere scartato qui.
+
+  Resta un residuo, e va detto: sulla riga del campo mancante viaggia anche
+  quello che le sta accanto, la data nell'esempio qui sopra. Toglierlo senza
+  rompere la riga vorrebbe dire ricostruirne la punteggiatura, e la punteggiatura
+  e' proprio cio' che serve guardare.
+
 ## 0.42.0
 
 - **Chi prova puo' mandare il testo che la macchina ha letto, e solo lui puo'

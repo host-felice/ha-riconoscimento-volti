@@ -746,6 +746,37 @@ function datiAMano(fallita) {
            perche: fallita && fallita.errore };
 }
 
+// Le lettere e le cifre di una stringa, per confrontare pezzi di testo che la
+// lettura ha impaginato a modo suo.
+function nudo(testo) {
+  return (testo || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+// Sotto questo, di una riga non e' rimasto niente da guardare.
+const RESTA_POCO = 4;
+
+function righeDaMandare(r) {
+  // **Si manda solo quello che non si e' saputo usare.** Da ogni riga si tolgono
+  // i pezzi gia' riconosciuti, e se non resta niente la riga non parte: il nome,
+  // il numero del documento e le date che la banda ottica ha gia' letto bene non
+  // servono a capire perche' un altro campo e' rimasto vuoto.
+  //
+  // Non basta buttare le righe che contengono qualcosa di buono, perche' una
+  // riga puo' contenerne due: sulla carta d'identita' `MESSINA(ME)01.03.1980`
+  // porta insieme la data, letta bene, e il comune di nascita, che e' quello che
+  // non e' uscito. Buttandola si butterebbe proprio la riga che serve.
+  const campi = r.campi || {};
+  const buoni = daMostrare()
+    .map(c => (campi[c] || {}).valore || "")
+    .flatMap(v => [nudo(v), nudo(v.split("(")[0])])
+    .filter(v => v.length > 2);
+  return (r.testo_stampato || []).filter(riga => {
+    let resto = nudo(riga);
+    for (const buono of buoni) resto = resto.split(buono).join("");
+    return resto.replace(/[0-9]/g, "").length >= RESTA_POCO;
+  });
+}
+
 function testoStampato(r) {
   if (!r.testo_stampato || !r.testo_stampato.length) return "";
   const pre = document.createElement("pre");
@@ -760,9 +791,10 @@ function testoStampato(r) {
   // caso in cui quel testo serve a qualcosa. Il testo contiene i dati della
   // persona, quindi non parte da solo: lo manda lei, sapendo cosa manda.
   const manda = mancavano.length
-    ? '<p class="sotto">Qualche campo &egrave; rimasto vuoto. Se mi mandi queste righe '
-      + "capisco perch&eacute; e lo sistemo. <b>Contengono i tuoi dati</b>, quelli che "
-      + "vedi scritti qui sopra: se preferisci di no non succede niente.</p>"
+    ? '<p class="sotto">Qualche campo &egrave; rimasto vuoto. Posso farmi mandare '
+      + "<b>solo le righe che non sono riuscito a usare</b>, cos&igrave; capisco "
+      + "perch&eacute; e lo sistemo: quelle che ho gi&agrave; capito restano qui. "
+      + "Se preferisci di no non succede niente.</p>"
       + '<button class="chiaro" id="manda_testo" data-mancavano="' + mancavano.join(",")
       + '">Mandale</button>'
     : "";
@@ -976,7 +1008,7 @@ document.getElementById("esito").addEventListener("click", evento => {
   tasto.disabled = true;
   tasto.textContent = "Grazie, mandate";
   chiama("testo", nuovoModulo({
-    righe: JSON.stringify((ultimoConfronto.dati || {}).testo_stampato || []),
+    righe: JSON.stringify(righeDaMandare(ultimoConfronto.dati || {})),
     mancavano: tasto.dataset.mancavano,
     tipo_dichiarato: tipo || "" }));
 });
