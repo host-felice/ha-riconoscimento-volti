@@ -3,6 +3,16 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.45.1
+
+Fuori i dati personali anche dai **commenti del codice e dal changelog**, non
+solo dai controlli. Erano finiti li' come esempi di quello che la lettura
+restituisce davvero: l'indirizzo di casa, una data di nascita e il numero di una
+carta d'identita'. Al loro posto valori inventati della stessa forma, che agli
+esempi bastavano.
+
+Restano nella **storia di git**, che questa pulizia non tocca.
+
 ## 0.45.0
 
 - **Le parentesi larghe valgono come quelle normali.** Il comune di nascita
@@ -159,7 +169,7 @@ comune di residenza    non c'e'       testo (retro)  non c'e'
   terza riga.
 - **Il comune si pesca in coda alla riga.** Sotto l'etichetta ci finisce anche
   altro: la data (`MESSINA (ME) 01.03.1980`) o tutto l'indirizzo (`VIALE DEI
-  TIGLI,N. 12 TERAMO (TE)`). Via le date, poi si prova la riga intera e via
+  TIGLI, N. 12 TERAMO (TE)`). Via le date, poi si prova la riga intera e via
   via solo la coda, perche' in italiano il comune sta in fondo.
 - **Senza la sigla della provincia si pretende il nome esatto.** Il primo
   tentativo normalizzava la riga prima di cercarci la provincia, e la
