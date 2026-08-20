@@ -26,7 +26,7 @@ import ottico
 import registro
 import volti
 
-VERSIONE = "0.38.0"
+VERSIONE = "0.39.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 # **"modello" non e' piu' un'opzione del pannello**, e non lo sara' nemmeno dopo.
@@ -972,6 +972,23 @@ def _raddrizza_il_tipo(esito, dichiarato):
     return esito
 
 
+def _dal_testo(testo, dichiarato):
+    """Quello che il testo stampato sa dire, secondo il documento che si guarda.
+
+    Sulla patente i campi sono **numerati**, e il numero sopravvive alla lettura
+    meglio di un'etichetta scritta. Sugli altri due i luoghi hanno un'etichetta
+    scritta accanto, e si va a cercare quella.
+
+    Le date restano sempre quelle riconosciute dal giorno e mese che hanno in
+    comune: e' un controllo piu' forte di qualunque ancoraggio, e per questo non
+    si lascia sovrascrivere.
+    """
+    dalla_forma = ottico.proponi(testo)
+    if dichiarato == "patente":
+        return dict(ottico.dalla_patente(testo), **dalla_forma)
+    return dict(ottico.dalle_etichette(testo), **dalla_forma)
+
+
 @app.route("/mrz", methods=["POST"])
 def leggi_mrz():
     """Le righe di caratteri in fondo al documento, e cosa dicono.
@@ -995,17 +1012,7 @@ def leggi_mrz():
         # e' il caso normale e restava invisibile. Senza questa riga non si sa
         # nemmeno se la lettura del testo stampato ha girato.
         testo = getattr(guaio, "testo_stampato", [])
-        proposti = ottico.proponi(testo)
-        if dichiarato == "carta":
-            # Il fronte della carta la banda ottica non ce l'ha, ma ha scritto
-            # il comune che l'ha emessa, che alla banda del retro manca.
-            proposti = dict(ottico.dalla_carta(testo), **proposti)
-        if dichiarato == "patente":
-            # I campi della patente sono numerati, e il numero sopravvive alla
-            # lettura meglio dell'etichetta scritta. Le date restano quelle
-            # riconosciute dal giorno e mese in comune, che e' un controllo piu'
-            # forte del numero di campo: per questo non si lasciano sovrascrivere.
-            proposti = dict(ottico.dalla_patente(testo), **proposti)
+        proposti = _dal_testo(testo, dichiarato)
         millisecondi = _millisecondi(partenza)
         # Quante date sono state trovate nel testo: e' il numero che dice perche'
         # non si e' proposto niente, e senza di lui resta da indovinare.
@@ -1025,6 +1032,14 @@ def leggi_mrz():
     campo_tipo = (esito.get("campi") or {}).get("tipo_documento")
     if campo_tipo and esito.get("tipo_documento"):
         campo_tipo["valore"] = esito["tipo_documento"]
+    # **Anche la lettura riuscita porta quello che ha letto in chiaro.** La
+    # banda ottica il comune di nascita e la residenza non ce li ha, e sono
+    # stampati sulla stessa carta: buttarli perche' la banda ha funzionato
+    # vorrebbe dire perdere proprio i campi che alla banda mancano. Quello che
+    # la banda gia' dice non si tocca, perche' ha le cifre di controllo dietro.
+    letti = _dal_testo(esito.get("testo_stampato") or [], dichiarato)
+    esito["campi_proposti"] = {c: v for c, v in letti.items()
+                               if c not in (esito.get("campi") or {})}
     esito["millisecondi"] = _millisecondi(partenza)
     validita = esito.get("validita") or {}
     log.info("mrz: %s, seconda passata %s, campi da correggere %s, %s, memoria %s MB",

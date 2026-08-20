@@ -3,6 +3,42 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.39.0
+
+Guardati una carta d'identita' e un passaporto veri, con il permesso di Felice,
+per sapere **quali scritte fanno da ancoraggio** invece di indovinarle. Ne
+escono due campi nuovi e una tabella completa:
+
+```
+campo                  patente        carta          passaporto
+sesso                  non c'e'       banda ottica   banda ottica
+comune di nascita      testo (3)      testo (fronte) testo stampato
+comune di emissione    testo (4c)     testo (fronte) non c'e'
+comune di residenza    non c'e'       testo (retro)  non c'e'
+```
+
+- **Comune di nascita e comune di residenza si leggono.** La banda ottica non li
+  ha, ma sono stampati in chiaro con l'etichetta accanto: `LUOGO E DATA DI
+  NASCITA`, `INDIRIZZO DI RESIDENZA`, e sul passaporto `Luogo di nascita. Place
+  of birth`. **Il comune che ha emesso il documento e quello di residenza non
+  sono la stessa cosa** anche quando coincidono, quindi sono due campi separati.
+- **Il valore si cerca fino a due righe sotto l'etichetta**, non una: l'etichetta
+  italiana e quella inglese vanno a capo fra loro e il valore finisce nella
+  terza riga.
+- **Il comune si pesca in coda alla riga.** Sotto l'etichetta ci finisce anche
+  altro: la data (`MESSINA (ME) 01.03.1980`) o tutto l'indirizzo (`VIALE DEI
+  TIGLI,N. 12 TERAMO (TE)`). Via le date, poi si prova la riga intera e via
+  via solo la coda, perche' in italiano il comune sta in fondo.
+- **Senza la sigla della provincia si pretende il nome esatto.** Il primo
+  tentativo normalizzava la riga prima di cercarci la provincia, e la
+  normalizzazione le parentesi le butta: persa la provincia, il numero dell'atto
+  di nascita `1628 p1 sA-1978` e' diventato **Pisa**. Adesso il pezzo arriva
+  grezzo, e dove la provincia non c'e' la tolleranza di due caratteri si spegne.
+- **Anche la lettura riuscita porta quello che ha letto in chiaro.** Sulla carta
+  la banda sta dietro e questi campi stanno davanti: buttare il testo perche' la
+  banda ha funzionato vorrebbe dire perdere proprio i campi che alla banda
+  mancano. Quello che la banda gia' dice non si tocca.
+
 ## 0.38.0
 
 - **Sulla carta d'identita' il comune di emissione adesso si legge.** Qui i campi

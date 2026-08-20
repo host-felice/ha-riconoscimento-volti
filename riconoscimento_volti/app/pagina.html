@@ -691,7 +691,8 @@ function schedaVolto(r) {
 const NOMI_CAMPI = {
   tipo_documento: "tipo di documento",
   cognome: "cognome", nome: "nome", sesso: "sesso",
-  data_nascita: "data di nascita",
+  data_nascita: "data di nascita", comune_nascita: "comune di nascita",
+  residenza: "comune di residenza",
   numero_documento: "numero documento", scadenza: "scadenza",
   comune_emissione: "comune di emissione"
 };
@@ -703,18 +704,22 @@ const NOMI_CAMPI = {
 //
 //   campo                  patente        carta          passaporto
 //   sesso                  non c'e'       banda ottica   banda ottica
-//   comune di emissione    testo (4c)     testo stampato non c'e'
+//   comune di nascita      testo (3)      testo (fronte) testo stampato
+//   comune di emissione    testo (4c)     testo (fronte) non c'e'
+//   comune di residenza    non c'e'       testo (retro)  non c'e'
 //
-// Il comune di **nascita** e' fuori da tutti e tre: la banda ottica non ce l'ha,
-// e finche' si misura la lettura non serve a niente farlo battere a macchina.
+// La banda ottica il comune di nascita e la residenza non li ha: sono stampati
+// in chiaro, con un'etichetta accanto, e si leggono di li'.
 // Restano fuori anche cittadinanza, stato di rilascio, numero di supporto e
 // numero personale: la banda ottica continua a leggerli, ma i primi due sono
 // italiani per definizione finche' si prova fra italiani, e gli ultimi due non
 // vogliono dire niente per chi ha il documento in mano.
-const ORDINE = ["tipo_documento", "cognome", "nome", "sesso", "data_nascita",
-                "numero_documento", "scadenza", "comune_emissione"];
+const ORDINE = ["tipo_documento", "cognome", "nome", "sesso",
+                "data_nascita", "comune_nascita",
+                "numero_documento", "scadenza", "comune_emissione", "residenza"];
 const SOLO_SU = { sesso: ["carta", "passaporto"],
-                  comune_emissione: ["patente", "carta"] };
+                  comune_emissione: ["patente", "carta"],
+                  residenza: ["carta"] };
 
 function daMostrare() {
   return ORDINE.filter(c => !SOLO_SU[c] || SOLO_SU[c].includes(tipo));

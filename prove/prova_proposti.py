@@ -107,19 +107,35 @@ assert r["comune_emissione"]["valore"] == "TERAMO (TE)", r
 
 print("i comuni si leggono dall'elenco della Polizia, con due caratteri di tolleranza")
 
-# --- il comune di emissione sulla carta d'identita' -------------------------
-# Righe vere lette il 20 agosto 2026: l'etichetta esce sfilacciata ma la parola
-# COMUNE dentro sopravvive, e il valore va a capo.
-carta = ["CARTA DIIDENTITA/IDENTITY CARD", "COMUNEOI/MUNICVPALITY", "TERAMO"]
-r = ottico.dalla_carta(carta)
+# --- i luoghi presi dall'etichetta stampata ---------------------------------
+# Righe ricalcate su una carta d'identita' e un passaporto veri, guardati il
+# 20 agosto 2026. L'etichetta esce sfilacciata ma la parola intera sopravvive.
+fronte = ["CARTA DI IDENTITA / IDENTITY CARD", "COMUNEOI/MUNICVPALITY", "TERAMO",
+          "COGNOME / SURNAME", "MARRA", "LUOGO E DATA DI NASCITA",
+          "PLACE AND DATE OF BIRTH", "MESSINA (ME) 01.03.1980"]
+r = ottico.dalle_etichette(fronte)
 assert r["comune_emissione"]["valore"] == "TERAMO (TE)", r
+# il valore sta due righe sotto, perche' fra le due etichette c'e' l'inglese
+assert r["comune_nascita"]["valore"] == "MESSINA (ME)", r
 
-# l'etichetta inglese vale quanto quella italiana
-assert ottico.dalla_carta(["MUNICIPALITY", "MESSINA"])["comune_emissione"]["valore"] == "MESSINA (ME)"
+retro = ["CODICE FISCALE", "RSSMRA80A01H501U",
+         "INDIRIZZO DI RESIDENZA / RESIDENCE",
+         "VIALE DEI TIGLI, N. 12 TERAMO (TE)",
+         "ESTREMI ATTO DI NASCITA", "1234 p5 sB-1980 012345"]
+r = ottico.dalle_etichette(retro)
+# il comune sta in fondo all'indirizzo, non e' tutta la riga
+assert r["residenza"]["valore"] == "TERAMO (TE)", r
+# e il numero dell'atto di nascita non deve diventare un comune: senza la sigla
+# della provincia si pretende il nome esatto, altrimenti usciva Pisa
+assert "comune_nascita" not in r, r
 
-# senza etichetta non si prende niente, e un nome che non esiste non diventa un comune
-assert ottico.dalla_carta(["CARTA DI IDENTITA", "TERAMO"]) == {}
-assert ottico.dalla_carta(["COMUNEOI/MUNICVPALITY", "XQZWKJ"]) == {}
-assert ottico.dalla_carta([]) == {}
+passaporto = ["Data di nascita. Date of birth. (4)", "01 MAR/MAR 1980",
+              "Sesso. Sex. (5) Luogo di nascita. Place of birth. (6)",
+              "M    MESSINA (ME)"]
+assert ottico.dalle_etichette(passaporto)["comune_nascita"]["valore"] == "MESSINA (ME)"
 
-print("sulla carta d'identita' il comune si trova dall'etichetta, anche sfilacciata")
+# senza etichetta non si prende niente
+assert ottico.dalle_etichette(["CARTA DI IDENTITA", "TERAMO"]) == {}
+assert ottico.dalle_etichette([]) == {}
+
+print("i luoghi si trovano dall'etichetta che li annuncia, anche sfilacciata")

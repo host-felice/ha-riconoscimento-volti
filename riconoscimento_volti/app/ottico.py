@@ -188,39 +188,94 @@ def _ufficio(letto):
     return letto.rsplit("-", 1)[-1]
 
 
-ETICHETTE_DEL_COMUNE = ("COMUNE", "MUNICIPALITY")
+# Le etichette stampate accanto ai luoghi, in italiano e in inglese. Bastano
+# una parola: quella intera dentro l'etichetta sopravvive alla lettura anche
+# quando il resto si sfalda (letto davvero: `COMUNEOI/MUNICVPALITY`).
+ETICHETTE = (("comune_emissione", ("COMUNE", "MUNICIPALITY")),
+             ("comune_nascita", ("NASCITA", "BIRTH")),
+             ("residenza", ("RESIDENZA", "RESIDENCE")))
+
+# Quante parole in coda si provano, quando la riga intera non e' un comune.
+CODE = (3, 2, 1)
 
 
-def dalla_carta(righe):
-    """Il comune che ha emesso la carta d'identita'.
+def _somiglia(parola, etichette):
+    return any(comuni.distanza(parola, e) <= comuni.TETTO for e in etichette)
 
-    Qui i campi non sono numerati come sulla patente: c'e' un'etichetta scritta e
-    il valore va a capo. Letto davvero il 20 agosto 2026:
 
-        CARTA DIIDENTITA/IDENTITY CARD
-        COMUNEOI/MUNICVPALITY
-        TERAMO
+def _comune_nel_pezzo(pezzo):
+    """Il comune dentro un pezzo di riga, che quasi mai e' tutta la riga.
 
-    L'etichetta esce sfilacciata (`COMUNEOI`, `MUNICVPALITY`) ma **la parola
-    intera dentro sopravvive**, ed e' quella che si cerca, con la stessa
-    tolleranza di due caratteri che si usa per i comuni. Il valore si prende dal
-    resto della riga se c'e' rimasto qualcosa, altrimenti dalla riga dopo.
+    Sotto l'etichetta ci finisce anche altro: la data di nascita (`MESSINA (ME)
+    01.03.1980`) o tutto l'indirizzo (`VIALE DEI TIGLI, N. 12 TERAMO
+    (TE)`). Via le date, poi si prova la riga intera e via via solo la coda,
+    perche' in italiano il comune sta in fondo.
+
+    **Il pezzo arriva grezzo, non normalizzato.** La sigla della provincia sta
+    fra parentesi e la normalizzazione le parentesi le butta: normalizzando
+    prima si perdeva la provincia, e senza di lei `1628 p1 sA-1978` e' diventato
+    Pisa, misurato il 20 agosto 2026.
+
+    **Senza provincia si pretende il nome esatto.** La tolleranza di due
+    caratteri e' fatta per un nome storto in mezzo a una riga di cui si sa che
+    e' un luogo, non per pescare comuni dentro numeri di protocollo: qui sotto
+    l'etichetta ci finisce di tutto, e la provincia e' l'unica cosa che dice
+    "questo pezzo un luogo lo contiene davvero".
+    """
+    pezzo = DATA.sub(" ", pezzo or "")
+    fra_parentesi = comuni.PROVINCIA.search(pezzo)
+    sigla = fra_parentesi.group(0) if fra_parentesi else ""
+    parole = comuni.PROVINCIA.sub(" ", pezzo).split()
+    if not parole:
+        return None
+    for quante in (len(parole),) + CODE:
+        if quante > len(parole):
+            continue
+        trovato = comuni.cerca(" ".join(parole[-quante:]) + " " + sigla,
+                               comuni.TETTO if sigla else 0)
+        if trovato:
+            return trovato
+    return None
+
+
+def dalle_etichette(righe):
+    """I luoghi scritti sul documento, presi dall'etichetta che li annuncia.
+
+    Qui i campi non sono numerati come sulla patente: c'e' un'etichetta scritta,
+    e il valore sta nel resto della riga o poco sotto. Le tre che contano,
+    guardate su una carta d'identita' e su un passaporto veri il 20 agosto 2026:
+
+        COMUNE DI / MUNICIPALITY          il comune che ha emesso la carta
+        LUOGO E DATA DI NASCITA           il comune di nascita, con la data
+        INDIRIZZO DI RESIDENZA            l'indirizzo intero, comune in fondo
+
+    Le prime due stanno sul fronte della carta, la terza sul retro, e il
+    passaporto ha la sua `Luogo di nascita. Place of birth`. **Il comune che ha
+    emesso il documento e quello di residenza non sono la stessa cosa** anche
+    quando coincidono, ed e' per questo che si tengono due etichette separate.
+
+    Si guarda **due righe sotto** e non una: l'etichetta italiana e quella
+    inglese vanno spesso a capo fra loro, e il valore finisce nella terza riga.
     """
     pulite = [comuni.normalizza(r) for r in righe]
+    fuori = {}
     for quante, riga in enumerate(pulite):
         parole = riga.split()
-        dove = next((i for i, p in enumerate(parole)
-                     if any(comuni.distanza(p, e) <= comuni.TETTO
-                            for e in ETICHETTE_DEL_COMUNE)), None)
-        if dove is None:
-            continue
-        resto = " ".join(parole[dove + 1:])
-        for candidato in (resto, pulite[quante + 1] if quante + 1 < len(pulite) else ""):
-            trovato = comuni.cerca(candidato)
-            if trovato:
-                return {"comune_emissione": {
-                    "valore": "%s (%s)" % (trovato["nome"], trovato["provincia"])}}
-    return {}
+        for chiave, etichette in ETICHETTE:
+            if chiave in fuori:
+                continue
+            dove = next((i for i, p in enumerate(parole) if _somiglia(p, etichette)), None)
+            if dove is None:
+                continue
+            candidati = [" ".join(righe[quante].split()[dove + 1:])]
+            candidati += righe[quante + 1:quante + 3]
+            for candidato in candidati:
+                trovato = _comune_nel_pezzo(candidato)
+                if trovato:
+                    fuori[chiave] = {"valore": "%s (%s)" % (trovato["nome"],
+                                                            trovato["provincia"])}
+                    break
+    return fuori
 
 
 def proponi(righe):
