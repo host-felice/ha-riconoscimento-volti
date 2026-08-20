@@ -3,6 +3,24 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.42.0
+
+- **Chi prova puo' mandare il testo che la macchina ha letto, e solo lui puo'
+  farlo.** Sapere che un campo non e' uscito dice che qualcosa non va; **vedere
+  le righe lette dice se si puo' aggiustare**, cioe' se l'etichetta era scritta
+  in un altro modo oppure se la fotografia non era leggibile. Sono due strade
+  diverse e da fuori non si distinguono.
+
+  Quel testo pero' contiene nome, indirizzo e numero del documento, quindi nel
+  quaderno non ci finisce di nascosto: **compare un tasto**, e solo quando
+  qualche campo e' rimasto vuoto. Accanto c'e' scritto in chiaro che quelle
+  righe contengono i suoi dati e che se preferisce di no non succede niente.
+
+  E' **l'unica riga del quaderno che contiene dati di qualcuno**, e ci sta
+  perche' qualcuno ha premuto un tasto per metterla. Arriva con due tetti
+  addosso, quaranta righe e centoventi caratteri per riga: senza, una richiesta
+  storta scriverebbe nel quaderno quanto vuole.
+
 ## 0.41.0
 
 Regole piu' lasche, ognuna presa da un caso che falliva davvero. Il principio,

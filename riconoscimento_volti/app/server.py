@@ -26,7 +26,7 @@ import ottico
 import registro
 import volti
 
-VERSIONE = "0.41.0"
+VERSIONE = "0.42.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 # **"modello" non e' piu' un'opzione del pannello**, e non lo sara' nemmeno dopo.
@@ -1071,6 +1071,34 @@ def leggi_mrz():
         "millisecondi": esito["millisecondi"],
     })
     return jsonify(esito)
+
+
+@app.route("/testo", methods=["POST"])
+def testo_letto():
+    """Il testo stampato che la persona ha deciso di mandare.
+
+    **E' l'unica riga del quaderno che contiene dati di qualcuno, e ci finisce
+    solo perche' qualcuno ha premuto un tasto per metterla.** Il divieto che
+    tiene fuori nomi e indirizzi da tutto il resto vale ancora: qui non vale
+    perche' non e' una raccolta, e' un invio.
+
+    Serve a una cosa sola, e senza di lei quella cosa non si puo' fare. Sapere
+    che su un documento il comune di nascita non e' uscito dice che qualcosa non
+    va; **vedere le righe lette dice se si puo' aggiustare**, cioe' se
+    l'etichetta era scritta in un altro modo o se la fotografia non era
+    leggibile. Sono due strade diverse e da fuori non si distinguono.
+
+    Si chiede solo quando qualche campo e' rimasto vuoto, mai altrimenti.
+    """
+    try:
+        righe = json.loads(_campo("righe") or "[]")
+    except ValueError:
+        righe = []
+    return jsonify({"prova_mandata": _registra("testo", {
+        "testo_donato": [str(r)[:120] for r in righe[:40]],
+        "mancavano": (_campo("mancavano") or "").split(",") if _campo("mancavano") else [],
+        "tipo_dichiarato": _campo("tipo_dichiarato"),
+    })})
 
 
 @app.route("/corretti", methods=["POST"])

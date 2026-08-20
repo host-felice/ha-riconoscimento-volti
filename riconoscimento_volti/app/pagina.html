@@ -753,9 +753,21 @@ function testoStampato(r) {
   // Aperto quando non si e' proposto niente: e' il solo caso in cui quel testo
   // serve davvero, perche' dice se la lettura non ha girato oppure ha girato e
   // non si e' riconosciuto niente dentro. Sono due guasti diversi.
-  const aperto = r.a_mano && !r.quanti_proposti ? " open" : "";
+  const campi = r.campi || {};
+  const mancavano = daMostrare().filter(c => !(campi[c] && campi[c].valore));
+  const aperto = mancavano.length ? " open" : "";
+  // **Il tasto compare solo se qualche campo e' rimasto vuoto**, che e' l'unico
+  // caso in cui quel testo serve a qualcosa. Il testo contiene i dati della
+  // persona, quindi non parte da solo: lo manda lei, sapendo cosa manda.
+  const manda = mancavano.length
+    ? '<p class="sotto">Qualche campo &egrave; rimasto vuoto. Se mi mandi queste righe '
+      + "capisco perch&eacute; e lo sistemo. <b>Contengono i tuoi dati</b>, quelli che "
+      + "vedi scritti qui sopra: se preferisci di no non succede niente.</p>"
+      + '<button class="chiaro" id="manda_testo" data-mancavano="' + mancavano.join(",")
+      + '">Mandale</button>'
+    : "";
   return "<details" + aperto + "><summary>Il testo stampato che la macchina ha letto ("
-    + r.testo_stampato.length + " righe)</summary>" + pre.outerHTML + "</details>";
+    + r.testo_stampato.length + " righe)</summary>" + pre.outerHTML + manda + "</details>";
 }
 
 function campiModificabili(r) {
@@ -957,6 +969,17 @@ function scriviChiCE() {
   });
 }
 scriviAttesi();
+
+document.getElementById("esito").addEventListener("click", evento => {
+  const tasto = evento.target.closest("#manda_testo");
+  if (!tasto || !ultimoConfronto) return;
+  tasto.disabled = true;
+  tasto.textContent = "Grazie, mandate";
+  chiama("testo", nuovoModulo({
+    righe: JSON.stringify((ultimoConfronto.dati || {}).testo_stampato || []),
+    mancavano: tasto.dataset.mancavano,
+    tipo_dichiarato: tipo || "" }));
+});
 
 document.getElementById("svuota").addEventListener("click", () => {
   attesi = []; localStorage.removeItem("attesi");
