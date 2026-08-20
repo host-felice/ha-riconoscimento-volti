@@ -3,6 +3,32 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.41.0
+
+Regole piu' lasche, ognuna presa da un caso che falliva davvero. Il principio,
+detto da Felice: **stiamo costruendo tutto sui documenti di una persona sola**, e
+che siano uguali a quelli degli altri non e' affatto detto. Quindi meno regole
+nostre su cosa un documento ha il diritto di stampare.
+
+- **Fra i pezzi di una data ci sta qualunque cosa che non sia una cifra.** Prima
+  c'era un elenco scelto da noi (punto, virgola, barra, trattino, spazio) e
+  bastava un carattere mai visto per perdere la data.
+- **Il numero del documento puo' uscire minuscolo**, e si rimette maiuscolo.
+- **La parentesi che chiude la sigla della provincia puo' mancare**, che la
+  lettura ogni tanto se la mangia. Non e' bastato renderla facoltativa: cosi'
+  `(TERAMO` sarebbe diventato la provincia TE piu' un avanzo. Si accetta solo
+  quando dopo le due lettere non c'e' un'altra lettera, che e' proprio cio' che
+  distingue una sigla da una parola.
+
+Misurato: `257Tetramo(TE)`, `TERAM0` con lo zero al posto della O e l'indirizzo
+intero funzionavano **gia'**, perche' li' la ricerca passa dall'elenco della
+Polizia con due caratteri di tolleranza. Le regole strette erano altrove.
+
+- **Nel quaderno finisce quali campi sono usciti, non solo quanti.** I nomi dei
+  campi non sono dati di nessuno, e sono l'unica cosa che dira' se questo modo di
+  leggere regge sui documenti degli altri: contarli dice che qualcosa non e'
+  uscito, nominarli dice **cosa**. Insieme al tipo di documento dichiarato.
+
 ## 0.40.0
 
 **La lettura non e' debole: erano sbagliate le coordinate che le davo io.**

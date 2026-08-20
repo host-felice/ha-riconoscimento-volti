@@ -86,7 +86,11 @@ def righe(dati_binari, lato=LATO):
 
 
 # Una data stampata: due cifre, due cifre, quattro cifre, separate come capita.
-DATA = re.compile(r"\b(\d{2})[.,/\- ]{1,3}(\d{2})[.,/\- ]{1,3}(\d{4}|\d{2})\b")
+DATA = re.compile(r"\b(\d{2})\D{1,3}(\d{2})\D{1,3}(\d{4}|\d{2})\b")
+# Fra un pezzo e l'altro della data ci sta **qualunque cosa che non sia una
+# cifra**, non un elenco di separatori scelti da noi. L'elenco era punto, virgola,
+# barra, trattino e spazio, e bastava un carattere mai visto per perdere la data:
+# regole nostre che decidono cosa un documento ha il diritto di stampare.
 
 
 def _anno(cifre):
@@ -112,7 +116,7 @@ MARCATORE = re.compile(r"([1-9][abc])[.,]|(?<!\d)([1-9])[.,]", re.IGNORECASE)
 # lettera lo rende gia' inconfondibile e perche' la cifra davanti ce l'ha per
 # davvero: letto il 20 agosto 2026, `21.07.201664c.MIT-UCO`.
 NOME_DI_PERSONA = re.compile(r"^[A-Za-z\u00c0-\u024f'\u2019 .-]{2,40}$")
-NUMERO_DI_PATENTE = re.compile(r"^[A-Z0-9]{8,12}$")
+NUMERO_DI_PATENTE = re.compile(r"^[A-Z0-9]{8,12}$", re.IGNORECASE)
 
 # I campi della patente italiana sono numerati, e il numero e' stampato accanto
 # al valore. Vale la pena fidarsene: **i numeri sopravvivono alla lettura molto
@@ -157,7 +161,9 @@ def dalla_patente(righe):
     for numero, chiave, forma in DALLA_PATENTE:
         valore = pezzi.get(numero, "").strip(" .,-")
         if valore and forma.match(valore):
-            fuori[chiave] = {"valore": valore}
+            # Maiuscolo comunque: la lettura ogni tanto restituisce minuscole
+            # che sul documento non ci sono, e maiuscolo lo vuole la Questura.
+            fuori[chiave] = {"valore": valore.upper()}
     # Nel campo 3 c'e' la data di nascita e accanto il luogo: tolta la data,
     # quello che resta e' il comune, con la sigla della provincia fra parentesi.
     _aggiungi(fuori, "comune_nascita", DATA.sub(" ", pezzi.get("3", "")))

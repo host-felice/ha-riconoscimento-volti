@@ -164,3 +164,17 @@ for chiave, valore in atteso.items():
 
 print("la patente si legge anche senza spazi e con i numeri di campo maiuscoli,")
 print("e sulla patente vera escono sette campi su sette")
+
+# --- regole piu' lasche, ognuna da un caso che era fallito -------------------
+# il numero del documento puo' uscire minuscolo, e si rimette maiuscolo
+assert ottico.dalla_patente(["5. u1s719136m", "9.B"])["numero_documento"]["valore"] == "U1A000000B"
+# fra i pezzi di una data ci sta qualunque cosa che non sia una cifra
+assert ottico.proponi(["07·05·78", "07·05·2027"])
+# la parentesi che chiude la provincia puo' mancare
+assert ottico._comune_nel_pezzo("257TERAMO(TE")["nome"] == "TERAMO"
+# ma una parola intera non diventa una sigla: (TERAMO) resta Teramo, non TE
+assert comuni.cerca("(TERAMO)")["nome"] == "TERAMO"
+# e il mese scritto a lettere non e' una data
+assert ottico.proponi(["01MAR/MAR1980", "18GIU/JUN2029"]) == {}
+
+print("le regole lasche reggono, e i casi di guardia non si rompono")

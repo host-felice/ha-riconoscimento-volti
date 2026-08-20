@@ -26,7 +26,7 @@ import ottico
 import registro
 import volti
 
-VERSIONE = "0.40.0"
+VERSIONE = "0.41.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 # **"modello" non e' piu' un'opzione del pannello**, e non lo sara' nemmeno dopo.
@@ -1021,6 +1021,8 @@ def leggi_mrz():
                  len(proposti), millisecondi, _memoria_mb())
         _registra("mrz", {"formato": None, "affidabile": False,
                           "righe_stampate": len(testo), "quanti_proposti": len(proposti),
+                          "campi_letti": sorted(proposti),
+                          "tipo_dichiarato": dichiarato,
                           "millisecondi": millisecondi})
         return jsonify({"errore": str(guaio), "testo_stampato": testo,
                         "campi_proposti": proposti,
@@ -1056,6 +1058,14 @@ def leggi_mrz():
         "quanti_da_correggere": len(esito.get("da_correggere") or []),
         "tipo_letto_male": bool(esito.get("tipo_letto_male")),
         "righe_stampate": len(esito.get("testo_stampato") or []),
+        # **Quali campi sono usciti dal testo stampato, non quanti.** I nomi dei
+        # campi non sono dati di nessuno, e sono l'unica cosa che dice se il
+        # nostro modo di leggere regge sui documenti degli altri: contarli dice
+        # che qualcosa non e' uscito, nominarli dice **cosa**. Su un banco che
+        # gira fra sconosciuti e' l'unico modo di scoprire che, per dire, il
+        # comune di nascita non esce mai sulle carte di un certo comune.
+        "campi_letti": sorted(esito.get("campi_proposti") or {}),
+        "tipo_dichiarato": dichiarato,
         "da_correggere": esito.get("da_correggere"),
         "scaduto": validita.get("scaduto"),
         "millisecondi": esito["millisecondi"],
