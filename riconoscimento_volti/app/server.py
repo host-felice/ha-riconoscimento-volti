@@ -24,10 +24,11 @@ import mrz
 import registro
 import volti
 
-VERSIONE = "0.19.0"
+VERSIONE = "0.19.1"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
-PREDEFINITE = {"modello": "buffalo_l", "invio_prove": "", "soglia": 0.4, "soglia_sface": 0.363,
+PREDEFINITE = {"modello": "buffalo_l", "invio_prove": "", "lettura_ottica": True,
+               "soglia": 0.4, "soglia_sface": 0.363,
                "soglia_minifasnet": 0.5,
                "volto_minimo_px": 80, "parola": "", "log_level": "info"}
 LIMITE_CORPO = 32 * 1024 * 1024   # una foto di telefono sta larga in 32 MB
@@ -973,7 +974,7 @@ def leggi_mrz():
     """
     partenza = time.time()
     esito = mrz.analizza_altrove(_immagine("immagine"),
-                                 anche_ottico=_si_o_no(_campo("anche_ottico")) is not False)
+                                 anche_ottico=bool(OPZIONI["lettura_ottica"]))
     esito = _raddrizza_il_tipo(esito, _campo("tipo_dichiarato"))
     esito["millisecondi"] = _millisecondi(partenza)
     validita = esito.get("validita") or {}

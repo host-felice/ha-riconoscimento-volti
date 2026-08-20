@@ -372,7 +372,8 @@ function leggiSubito(chiave, blob) {
   // perche' e' li' che stanno il comune di nascita e il luogo di rilascio, cioe'
   // i campi che alla banda mancano. E la patente non ha banda affatto: il testo
   // stampato e' l'unica strada, non un ripiego.
-  letture[chiave] = codaLetture = codaLetture.then(() => chiama("mrz", modulo));
+  codaLetture = codaLetture.then(() => chiama("mrz", modulo));
+  letture[chiave] = codaLetture;
   aggiornaLettura();
   letture[chiave].then(aggiornaLettura);
 }

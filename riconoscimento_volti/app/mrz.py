@@ -263,14 +263,6 @@ def _apri(dati_binari):
     return img
 
 
-def _rimpicciolisci(img, lato_lungo):
-    h, w = img.shape[:2]
-    scala = float(lato_lungo) / max(h, w)
-    if scala >= 1:
-        return img
-    return cv2.resize(img, (int(w * scala), int(h * scala)), interpolation=cv2.INTER_AREA)
-
-
 def _righe(img):
     esito = _lettore_pronto()(img, do_center_crop=False, do_postprocess=True)
     righe = [r for r in (esito.get("mrz_texts") or []) if r.strip()]
@@ -292,7 +284,7 @@ def analizza(dati_binari):
     guaio = None
     for lato in (LATO_PRIMO, LATO_SECONDO):
         try:
-            righe = _righe(_rimpicciolisci(img, lato))
+            righe = _righe(ottico.rimpicciolisci(img, lato))
             formato, campi = interpreta(righe)
         except NessunaMRZ as questo:
             guaio = questo

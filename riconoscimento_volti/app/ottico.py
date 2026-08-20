@@ -32,29 +32,15 @@ LATO = 1000
 # poca fiducia, e in mezzo ai valori veri fanno solo rumore.
 FIDUCIA_MINIMA = 0.5
 
-_motore = None
+def rimpicciolisci(img, lato_lungo):
+    """Sta qui e non nel lettore della banda ottica perche' serve a tutti e due.
 
-
-class LettoreOtticoAssente(Exception):
-    pass
-
-
-def _motore_pronto():
-    """Il motore, aperto la prima volta che serve dentro questo processo."""
-    global _motore
-    if _motore is None:
-        try:
-            from rapidocr_onnxruntime import RapidOCR
-        except ImportError as guaio:
-            raise LettoreOtticoAssente("la lettura del testo stampato non e' installata: %s"
-                                       % guaio)
-        _motore = RapidOCR()
-    return _motore
-
-
-def _rimpicciolisci(img):
+    Le due letture vogliono dimensioni diverse (mille pixel questa, duemila o
+    tremilacinquecento quella), ma il conto e' lo stesso e non ha senso averne
+    due copie.
+    """
     h, w = img.shape[:2]
-    scala = float(LATO) / max(h, w)
+    scala = float(lato_lungo) / max(h, w)
     if scala >= 1:
         return img
     return cv2.resize(img, (int(w * scala), int(h * scala)), interpolation=cv2.INTER_AREA)
@@ -67,19 +53,19 @@ def righe(dati_binari):
     cercare ogni valore negli elenchi chiusi della Polizia (7.898 comuni), ed e'
     un lavoro suo: qui si vede solo **cosa la macchina ha letto davvero**, che e'
     quello che serve per sapere se su questo documento la strada e' percorribile.
+
+    Il motore si apre qui, ogni volta, e non si tiene da parte: questo modulo
+    vive dentro il processo usa e getta che legge una fotografia sola e poi
+    muore, quindi tenerlo in caldo non servirebbe mai a nessuno. Aprirlo costa
+    0,6 secondi su un N4000, misurati.
     """
+    from rapidocr_onnxruntime import RapidOCR
+
     img = cv2.imdecode(np.frombuffer(dati_binari, np.uint8), cv2.IMREAD_COLOR)
     if img is None:
         return []
-    esito, _ = _motore_pronto()(_rimpicciolisci(img))
-    if not esito:
-        return []
-    fuori = []
-    for pezzo in esito:
-        # [riquadro, testo, fiducia]: del riquadro non ce ne facciamo niente
-        # finche' i campi non si estraggono, e portarlo in giro sarebbe peso.
-        if len(pezzo) >= 3 and float(pezzo[2]) >= FIDUCIA_MINIMA:
-            testo = str(pezzo[1]).strip()
-            if testo:
-                fuori.append(testo)
-    return fuori
+    esito, _ = RapidOCR()(rimpicciolisci(img, LATO))
+    # Del riquadro non ce ne facciamo niente finche' i campi non si estraggono,
+    # e portarlo in giro sarebbe peso.
+    return [testo.strip() for _, testo, fiducia in (esito or [])
+            if float(fiducia) >= FIDUCIA_MINIMA and testo.strip()]

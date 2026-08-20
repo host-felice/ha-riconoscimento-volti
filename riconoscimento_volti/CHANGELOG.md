@@ -3,6 +3,22 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.19.1
+
+Giro di potatura sulla versione precedente, piu' una cosa che era decisa e non
+era stata costruita.
+
+- **L'interruttore della lettura ottica c'e' davvero**, come opzione dell'add-on
+  (`lettura_ottica`), accesa di serie. Nella 0.19.0 era finito un campo nella
+  richiesta, che nessuno mandava mai: la decisione era per macchina, non per
+  fotografia.
+- Il motore della lettura ottica non si tiene piu' in caldo fra una chiamata e
+  l'altra. Non serviva a nessuno: quel modulo vive dentro un processo che legge
+  una fotografia sola e poi muore.
+- Il rimpicciolimento della fotografia era scritto due volte, una per lettore.
+  Adesso e' uno solo, con la misura come argomento.
+- Via un'eccezione che nessuno prendeva per quello che era.
+
 ## 0.19.0
 
 Il flusso deciso su #7 il 20 agosto 2026, costruito. Prima la pagina aspettava
