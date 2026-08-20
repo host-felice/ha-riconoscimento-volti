@@ -26,7 +26,7 @@ import ottico
 import registro
 import volti
 
-VERSIONE = "0.26.0"
+VERSIONE = "0.27.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 # **"modello" non e' piu' un'opzione del pannello**, e non lo sara' nemmeno dopo.
@@ -988,6 +988,12 @@ def leggi_mrz():
         # nemmeno se la lettura del testo stampato ha girato.
         testo = getattr(guaio, "testo_stampato", [])
         proposti = ottico.proponi(testo)
+        if dichiarato == "patente":
+            # I campi della patente sono numerati, e il numero sopravvive alla
+            # lettura meglio dell'etichetta scritta. Le date restano quelle
+            # riconosciute dal giorno e mese in comune, che e' un controllo piu'
+            # forte del numero di campo: per questo non si lasciano sovrascrivere.
+            proposti = dict(ottico.dalla_patente(testo), **proposti)
         millisecondi = _millisecondi(partenza)
         # Quante date sono state trovate nel testo: e' il numero che dice perche'
         # non si e' proposto niente, e senza di lui resta da indovinare.

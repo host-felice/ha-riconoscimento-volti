@@ -3,6 +3,32 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.27.0
+
+- **La patente si legge dai numeri dei suoi campi.** Detta da Felice il 20 agosto
+  2026 guardando cosa era uscito davvero: "se tagli 1. 2. 3. 4a. 4b. 5. e ignori
+  7. e 9., riconosce tutto bene". Adesso arrivano gia' scritti anche **cognome**
+  (campo 1), **nome** (campo 2) e **numero del documento** (campo 5). Con le due
+  date fanno cinque campi su sette.
+
+  Smentisce una scelta fatta prima: si era deciso di non fidarsi delle etichette
+  perche' la lettura le sfilaccia. Vero per le etichette **scritte**, falso per
+  quelle **numerate**: i numeri sopravvivono, e in una patente vera c'erano tutti.
+
+  La rete e' la forma del valore. Un cognome fatto di lettere, un numero di
+  patente fatto di lettere e cifre e lungo il giusto. Serve, perche' la lettura
+  ogni tanto salta gli spazi e attacca un pezzo al successivo, e perche' dentro
+  una data come `21.07.2016` c'e' un `2.` che senza rete diventerebbe il nome.
+  Quello che non ha la forma resta vuoto e lo scrive l'ospite.
+
+- **L'anno di una data ha due cifre o quattro, mai tre.** Con tre usciva un anno
+  inventato.
+
+- **L'avviso "mi serve il numero del documento" adesso se ne va.** Restava
+  appiccicato sotto anche dopo che il numero era stato scritto e la
+  registrazione era andata a buon fine: si leggeva "non ha funzionato" davanti a
+  una cosa che aveva funzionato.
+
 ## 0.26.0
 
 Riscritta la regola che ricava le date dal testo stampato, sulle righe vere di

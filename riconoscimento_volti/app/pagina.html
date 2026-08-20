@@ -622,8 +622,9 @@ async function chiama(dove, corpo) {
 
 function mostra(html) { document.getElementById("esito").innerHTML = html; }
 
-function avviso(testo) {
-  return '<div class="passo"><div class="verdetto no">Non ha funzionato</div><p>' + testo + "</p></div>";
+function avviso(testo, nome) {
+  return '<div class="passo"' + (nome ? ' id="' + nome + '"' : "") +
+    '><div class="verdetto no">Non ha funzionato</div><p>' + testo + "</p></div>";
 }
 
 /* ---- le due schede del risultato ---- */
@@ -827,12 +828,18 @@ function registra(volto, dati, porta) {
   // ripiego. Alla porta le due voci hanno agganciato la stessa faccia con lo
   // stesso punteggio, e due voci per una persona contano due arrivi dove ce n'e'
   // uno. Per #26 e' il riconoscimento a fare da prova di chi c'era davvero.
+  // **L'avviso della volta prima si toglie.** Restava appiccicato sotto anche
+  // quando il numero era stato scritto e la registrazione era andata: si leggeva
+  // ancora "non ha funzionato" davanti a una cosa che aveva funzionato.
+  const vecchio = document.getElementById("manca_il_numero");
+  if (vecchio) vecchio.remove();
   const campi = (dati && dati.campi && !dati.errore) ? dati.campi : null;
   const numero = campi && campi.numero_documento && campi.numero_documento.valore;
   const id = String(numero || "").replace(/\s/g, "").toUpperCase();
   if (!id) {
     document.getElementById("esito").insertAdjacentHTML("beforeend", avviso(
-      "Mi serve il numero del documento. Scrivilo qui sopra e conferma di nuovo."));
+      "Mi serve il numero del documento. Scrivilo qui sopra e conferma di nuovo.",
+      "manca_il_numero"));
     return;
   }
   const nome = [campi.nome && campi.nome.valore, campi.cognome && campi.cognome.valore]

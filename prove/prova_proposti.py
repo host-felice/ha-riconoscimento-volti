@@ -45,4 +45,25 @@ assert ottico.proponi(["01.03.80", "01.03.2030", "03.09.80", "03.09.2030"]) == {
 assert ottico.proponi(["LUOGOFDATADENASOTA", "1234567890", "TE1234567X"]) == {}
 assert ottico.proponi([]) == {}
 
-print("la nascita e la scadenza si riconoscono dal giorno e mese che hanno in comune")
+# --- i campi numerati della patente ------------------------------------------
+# "se tagli 1. 2. 3. 4a. 4b. 5. e ignori 7. e 9., riconosce tutto bene", detto
+# da Felice il 20 agosto 2026 guardando cosa era uscito davvero.
+patente = ["PATENTE DI GUIDA", "1. MARRA", "2. FELICE", "3. 01.03.80 MESSINA (ME)",
+           "4a. 21.07.201664c.MIT-UCO", "4b. 01.03.2030", "5. U1A000000B", "7.", "9. B"]
+r = ottico.dalla_patente(patente)
+assert r["cognome"] == {"valore": "MARRA", "verificato": False}, r
+assert r["nome"]["valore"] == "FELICE", r
+assert r["numero_documento"]["valore"] == "U1A000000B", r
+
+# --- la data non si spaccia per un campo -------------------------------------
+# Dentro `21.07.2016` c'e' un `2.`, e senza rete diventerebbe il nome.
+r = ottico.dalla_patente(["1. MARRA", "4a. 21.07.2016", "5. U1A000000B"])
+assert "nome" not in r, r
+assert r["cognome"]["valore"] == "MARRA", r
+
+# --- quello che non ha la forma giusta resta vuoto ---------------------------
+assert ottico.dalla_patente(["1. 12345", "2. ---", "5. AB"]) == {}
+assert ottico.dalla_patente([]) == {}
+
+print("la nascita e la scadenza si riconoscono dal giorno e mese che hanno in comune,")
+print("e cognome, nome e numero del documento dal numero del loro campo")

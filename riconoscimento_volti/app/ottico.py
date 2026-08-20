@@ -84,7 +84,7 @@ def righe(dati_binari, lato=LATO):
 
 
 # Una data stampata: due cifre, due cifre, quattro cifre, separate come capita.
-DATA = re.compile(r"\b(\d{2})[.,/\- ]{1,3}(\d{2})[.,/\- ]{1,3}(\d{2,4})\b")
+DATA = re.compile(r"\b(\d{2})[.,/\- ]{1,3}(\d{2})[.,/\- ]{1,3}(\d{4}|\d{2})\b")
 
 
 def _anno(cifre):
@@ -101,6 +101,57 @@ def _anno(cifre):
     if len(cifre) == 4:
         return cifre
     return ("20" if int(cifre) <= datetime.date.today().year % 100 else "19") + cifre
+
+
+MARCATORE = re.compile(r"(?<!\d)([1-9][ab]?)[.,]")
+NOME_DI_PERSONA = re.compile(r"^[A-Za-z\u00c0-\u024f'\u2019 .-]{2,40}$")
+NUMERO_DI_PATENTE = re.compile(r"^[A-Z0-9]{8,12}$")
+
+# I campi della patente italiana sono numerati, e il numero e' stampato accanto
+# al valore. Vale la pena fidarsene: **i numeri sopravvivono alla lettura molto
+# meglio delle parole**, e in una patente vera letta il 20 agosto 2026 c'erano
+# tutti, mentre le etichette scritte uscivano sfilacciate.
+DALLA_PATENTE = (("1", "cognome", NOME_DI_PERSONA),
+                 ("2", "nome", NOME_DI_PERSONA),
+                 ("5", "numero_documento", NUMERO_DI_PATENTE))
+
+
+def _pezzi_numerati(testo):
+    """Quello che sta scritto dopo ogni numero di campo, fino al numero dopo."""
+    tagli = [(quello.start(), quello.end(), quello.group(1))
+             for quello in MARCATORE.finditer(testo)]
+    pezzi = {}
+    for quante, (_, fine, numero) in enumerate(tagli):
+        # La prima volta che un numero compare e' quella buona: piu' avanti le
+        # date lo rifanno comparire (dentro `21.07.2016` c'e' un `2.`).
+        if numero in pezzi:
+            continue
+        dopo = tagli[quante + 1][0] if quante + 1 < len(tagli) else len(testo)
+        pezzi[numero] = testo[fine:dopo].strip()
+    return pezzi
+
+
+def dalla_patente(righe):
+    """Cognome, nome e numero del documento, presi dal numero del loro campo.
+
+    Detta da Felice il 20 agosto 2026, guardando cosa era uscito davvero: "se
+    tagli 1. 2. 3. 4a. 4b. 5. e ignori 7. e 9., riconosce tutto bene".
+
+    **Il valore si prende solo se ha la forma giusta.** Un cognome fatto di
+    lettere, un numero di patente fatto di lettere e cifre e lungo il giusto: e'
+    la rete che tiene, perche' la lettura ogni tanto salta gli spazi e attacca un
+    pezzo al successivo (visto davvero: `64c.MIT-UCO`, con un 6 di troppo
+    davanti). Se il pezzo non ha la forma, il campo resta vuoto e lo scrive
+    l'ospite: dieci secondi suoi contro una schedina sbagliata alla Questura.
+    """
+    pezzi = _pezzi_numerati(" ".join(righe))
+    fuori = {}
+    for numero, chiave, forma in DALLA_PATENTE:
+        valore = pezzi.get(numero, "").strip(" .,-")
+        if valore and forma.match(valore):
+            # Nessuno li ha verificati: escono col bordo rosso, da guardare.
+            fuori[chiave] = {"valore": valore, "verificato": False}
+    return fuori
 
 
 def proponi(righe):
