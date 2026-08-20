@@ -9,3 +9,14 @@ costruito. I modelli hanno licenze proprie, diverse da questa.
   il codice di InsightFace e' MIT, ma i modelli gia' addestrati sono
   dichiarati "per sola ricerca non commerciale". Per un uso commerciale
   serve una licenza da InsightFace, oppure un modello diverso.
+
+-------------------------------------------------------------------------------
+
+riconoscimento_volti/app/tabelle/comuni.csv
+
+Tabella di codifica dei comuni italiani della Polizia di Stato, scaricata il
+19 agosto 2026 da alloggiatiweb.poliziadistato.it/PortaleAlloggiati/Tabelle.aspx.
+E' l'elenco chiuso che il servizio Alloggiati Web pretende per il comune di
+nascita e per il luogo di rilascio del documento, e lo stesso elenco vale per la
+statistica regionale Ross1000. E' un elenco pubblico della pubblica
+amministrazione e non contiene dati di nessuno.

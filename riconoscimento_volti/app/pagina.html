@@ -671,8 +671,9 @@ function schedaVolto(r) {
 const NOMI_CAMPI = {
   tipo_documento: "tipo di documento",
   cognome: "cognome", nome: "nome", sesso: "sesso",
-  data_nascita: "data di nascita",
-  numero_documento: "numero documento", scadenza: "scadenza"
+  data_nascita: "data di nascita", comune_nascita: "comune di nascita",
+  numero_documento: "numero documento", scadenza: "scadenza",
+  comune_emissione: "comune di emissione"
 };
 
 // **Solo i campi che servono a chi prova adesso.** La banda ottica ne legge
@@ -681,8 +682,9 @@ const NOMI_CAMPI = {
 // vogliono dire niente per chi ha il documento in mano, e i primi due sono
 // italiani per definizione finche' si prova con italiani. La cittadinanza
 // tornera' quando sara' un menu' che si completa da solo.
-const DA_MOSTRARE = ["tipo_documento", "cognome", "nome", "sesso", "data_nascita",
-                     "numero_documento", "scadenza"];
+const DA_MOSTRARE = ["tipo_documento", "cognome", "nome", "sesso",
+                     "data_nascita", "comune_nascita",
+                     "numero_documento", "scadenza", "comune_emissione"];
 
 
 // Il nome per esteso di quello che l'ospite ha dichiarato lui stesso. Non e'

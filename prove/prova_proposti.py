@@ -49,7 +49,7 @@ assert ottico.proponi([]) == {}
 # "se tagli 1. 2. 3. 4a. 4b. 5. e ignori 7. e 9., riconosce tutto bene", detto
 # da Felice il 20 agosto 2026 guardando cosa era uscito davvero.
 patente = ["PATENTE DI GUIDA", "1. MARRA", "2. FELICE", "3. 01.03.80 MESSINA (ME)",
-           "4a. 21.07.201664c.MIT-UCO", "4b. 01.03.2030", "5. U1A000000B", "7.", "9. B"]
+           "4a. 21.07.201664c.MIT-UCTO", "4b. 01.03.2030", "5. U1A000000B", "7.", "9. B"]
 r = ottico.dalla_patente(patente)
 assert r["cognome"] == {"valore": "MARRA", "verificato": False}, r
 assert r["nome"]["valore"] == "FELICE", r
@@ -67,3 +67,32 @@ assert ottico.dalla_patente([]) == {}
 
 print("la nascita e la scadenza si riconoscono dal giorno e mese che hanno in comune,")
 print("e cognome, nome e numero del documento dal numero del loro campo")
+
+# --- il comune si prende dall'elenco, non da come lo ha letto la macchina ----
+import comuni
+
+assert comuni.cerca("MESSINA (ME)")["nome"] == "MESSINA"
+# una lettera sbagliata si perdona
+assert comuni.cerca("MESSIMA (ME)")["nome"] == "MESSINA"
+# i cinque omonimi senza provincia non si scelgono a caso: meglio niente
+assert comuni.cerca("CASTRO") is None
+assert comuni.cerca("CASTRO (BG)")["provincia"] == "BG"
+# apostrofi e accenti non contano da nessuno dei due lati
+assert comuni.cerca("ALI (ME)")["nome"] == "ALI'"
+# i 3.396 comuni soppressi restano fuori: quale codice voglia la Questura per
+# chi ci e' nato non e' scritto da nessuna parte
+assert comuni.cerca("ABBADIA ALPINA (TO)") is None
+# quello che non somiglia a niente non diventa un comune
+assert comuni.cerca("XQZWKJ") is None
+assert comuni.cerca("") is None
+
+# --- il campo 3 porta il comune di nascita, il 4c quello di emissione --------
+r = ottico.dalla_patente(patente)
+assert r["comune_nascita"]["valore"] == "MESSINA (ME)", r
+# MIT-UCO vuol dire duplicato dell'Ufficio Centrale Operativo, che sta a Roma,
+# e si riconosce anche storpiato: letto davvero `MIT-UCTO`
+assert r["comune_emissione"]["valore"] == "ROMA (RM)", r
+r = ottico.dalla_patente(["3. 12.03.90 TERAMO (TE)", "4c. MC-TERAMO"])
+assert r["comune_emissione"]["valore"] == "TERAMO (TE)", r
+
+print("i comuni si leggono dall'elenco della Polizia, con due caratteri di tolleranza")

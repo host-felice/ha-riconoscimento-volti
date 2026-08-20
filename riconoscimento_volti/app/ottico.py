@@ -23,6 +23,8 @@ N4000, misurati, e non sposta il conto.
 import datetime
 import re
 
+import comuni
+
 import cv2
 import numpy as np
 
@@ -103,7 +105,12 @@ def _anno(cifre):
     return ("20" if int(cifre) <= datetime.date.today().year % 100 else "19") + cifre
 
 
-MARCATORE = re.compile(r"(?<!\d)([1-9][ab]?)[.,]")
+MARCATORE = re.compile(r"([1-9][abc])[.,]|(?<!\d)([1-9])[.,]")
+# Due modi di scrivere la stessa cosa. Un numero da solo (`3.`) si prende solo se
+# non ha una cifra davanti, altrimenti dentro `21.07.2016` ci sarebbero tre
+# marcatori finti. Un numero con la lettera (`4c.`) si prende sempre, perche' la
+# lettera lo rende gia' inconfondibile e perche' la cifra davanti ce l'ha per
+# davvero: letto il 20 agosto 2026, `21.07.201664c.MIT-UCO`.
 NOME_DI_PERSONA = re.compile(r"^[A-Za-z\u00c0-\u024f'\u2019 .-]{2,40}$")
 NUMERO_DI_PATENTE = re.compile(r"^[A-Z0-9]{8,12}$")
 
@@ -118,7 +125,7 @@ DALLA_PATENTE = (("1", "cognome", NOME_DI_PERSONA),
 
 def _pezzi_numerati(testo):
     """Quello che sta scritto dopo ogni numero di campo, fino al numero dopo."""
-    tagli = [(quello.start(), quello.end(), quello.group(1))
+    tagli = [(quello.start(), quello.end(), quello.group(1) or quello.group(2))
              for quello in MARCATORE.finditer(testo)]
     pezzi = {}
     for quante, (_, fine, numero) in enumerate(tagli):
@@ -151,7 +158,36 @@ def dalla_patente(righe):
         if valore and forma.match(valore):
             # Nessuno li ha verificati: escono col bordo rosso, da guardare.
             fuori[chiave] = {"valore": valore, "verificato": False}
+    # Nel campo 3 c'e' la data di nascita e accanto il luogo: tolta la data,
+    # quello che resta e' il comune, con la sigla della provincia fra parentesi.
+    _aggiungi(fuori, "comune_nascita", DATA.sub(" ", pezzi.get("3", "")))
+    _aggiungi(fuori, "comune_emissione", _ufficio(pezzi.get("4c", "")))
     return fuori
+
+
+def _aggiungi(fuori, chiave, letto):
+    """Il comune si scrive come lo scrive l'elenco della Polizia, non come lo ha
+    letto la macchina: e' l'elenco che decide, e sotto c'e' gia' il suo codice."""
+    trovato = comuni.cerca(letto)
+    if trovato:
+        fuori[chiave] = {"valore": "%s (%s)" % (trovato["nome"], trovato["provincia"]),
+                         "verificato": False}
+
+
+def _ufficio(letto):
+    """Il comune dell'ufficio che ha rilasciato la patente.
+
+    Regola detta da Felice il 20 agosto 2026: quando c'e' scritto **MIT-UCO** il
+    documento e' un duplicato emesso dall'Ufficio Centrale Operativo, che sta a
+    **Roma**. Si cerca somigliante e non identico perche' la lettura quella
+    sigla la storpia: vista uscire `MIT-UCTO`.
+
+    Negli altri casi l'ufficio e' scritto come sigla piu' citta' (`MC-TERAMO`), e
+    la citta' e' quello che sta dopo il trattino.
+    """
+    if comuni.distanza(comuni.normalizza(letto), comuni.normalizza("MIT-UCO")) <= comuni.TETTO:
+        return "ROMA (RM)"
+    return letto.rsplit("-", 1)[-1]
 
 
 def proponi(righe):

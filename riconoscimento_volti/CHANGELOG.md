@@ -3,6 +3,37 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.28.0
+
+Due campi nuovi, **comune di nascita** e **comune di emissione**, e sotto di loro
+l'elenco chiuso dei comuni della Polizia di Stato, che adesso viaggia dentro
+l'add-on.
+
+- **Non si usa il comune letto: si usa quello dell'elenco a cui somiglia.** Il
+  nome stampato e il nome che vuole la Questura non coincidono quasi mai al
+  carattere. Due caratteri di tolleranza, che e' quello che sbaglia una lettura
+  storta senza cominciare a confondere due comuni diversi. Quello che non
+  somiglia abbastanza a niente lascia il campo vuoto.
+- **La provincia fra parentesi non e' decorazione, e' la chiave.** Cinque nomi
+  validi esistono in due province (Castro, Livo, Peglio, Samone, San Teodoro), e
+  il nome da solo non basta a sceglierne uno. La lettura la provincia ce l'ha
+  (`MESSINA (ME)`, letto davvero), e quando c'e' si cerca solo dentro quella:
+  circa cento nomi invece di ottomila, quindi piu' preciso e piu' veloce insieme.
+  Quando manca e il nome e' uno dei cinque, non si propone niente.
+- **Comune di emissione dal campo 4c.** Regola detta da Felice: **MIT-UCO** vuol
+  dire duplicato emesso dall'Ufficio Centrale Operativo, che sta a **Roma**. Si
+  riconosce anche storpiato, perche' quella sigla la lettura la storpia: vista
+  uscire `MIT-UCTO`. Negli altri casi l'ufficio e' sigla piu' citta'
+  (`MC-TERAMO`) e la citta' si cerca nell'elenco come le altre.
+- **I 3.396 comuni soppressi restano fuori.** Sono ancora nell'elenco con la data
+  in cui hanno smesso di esistere, ma per chi ci e' nato quale dei due codici
+  voglia la Questura non e' scritto da nessuna parte e va provato col loro web
+  service. Indovinarlo adesso sarebbe peggio di un campo vuoto.
+- Il marcatore dei campi adesso prende anche `4a` `4b` `4c`, pure quando la
+  lettura ci appiccica una cifra davanti: letto davvero `21.07.201664c.MIT-UCO`.
+
+Sulla patente arrivano cosi' **sette campi su nove** gia' scritti.
+
 ## 0.27.0
 
 - **La patente si legge dai numeri dei suoi campi.** Detta da Felice il 20 agosto
