@@ -3,6 +3,32 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.18.0
+
+- **La conferma dei dati era un gesto per finta.** I campi si potevano gia'
+  correggere, ma quello che ci si scriveva dentro non finiva da nessuna parte:
+  l'ospite veniva iscritto **prima** che la scheda comparisse, con i dati come
+  li aveva letti la macchina. Adesso e' il tasto "s&igrave;, i dati sono giusti"
+  a iscrivere, e iscrive quello che c'e' scritto nei campi in quel momento.
+- Sotto i campi c'e' scritto che si possono correggere, perche' nessuno prova a
+  scrivere dentro una casella che sembra un risultato. E il tasto lo dice
+  quando le correzioni le ha prese davvero.
+- **Quanti campi sono stati corretti a mano finisce nel quaderno**, e non si
+  poteva ricavare da nient'altro. Le cifre di controllo dicono quali campi la
+  macchina **sospetta**; questo dice quali erano **davvero** sbagliati, compresi
+  quelli che una cifra di controllo non ce l'hanno e passano inosservati.
+- **Anche la lettura del documento finisce nel quaderno**: formato, se e'
+  servita la seconda passata, quanti campi non tornavano, quanto ci ha messo.
+  Prima non ci finiva affatto, e la domanda "quali campi si riempiono da soli e
+  quali restano a mano" non aveva da nessuna parte i numeri per rispondere.
+- **Un terzo documento fra cui scegliere: "patente o altro senza caratteri".**
+  Non ha le due righe da leggere, quindi la lettura non parte affatto e i campi
+  partono vuoti da riempire a mano. Il confronto fra la fotografia del documento
+  e il selfie si fa lo stesso. Serve a provare la strada di scampo che era
+  decisa da sempre e che non si poteva percorrere: finche' si sceglieva solo fra
+  carta e passaporto, un documento che non si legge non si poteva nemmeno
+  dichiarare.
+
 ## 0.17.0
 
 - **Il quaderno delle prove non sapeva cosa stava misurando.** Segnava ogni

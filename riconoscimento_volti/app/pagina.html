@@ -98,6 +98,7 @@
   <div class="bottoni">
     <button class="chiaro" data-tipo="carta">Carta d'identità</button>
     <button class="chiaro" data-tipo="passaporto">Passaporto</button>
+    <button class="chiaro" data-tipo="patente">Patente o altro senza caratteri</button>
   </div>
 </div>
 
@@ -254,11 +255,14 @@ function scegliTipo(scelto) {
   document.querySelectorAll("[data-tipo]").forEach(b =>
     b.classList.toggle("scelto", b.dataset.tipo === scelto));
   const carta = scelto === "carta";
+  const aMano = scelto === "patente";
   document.getElementById("titolo_documento").textContent =
-    carta ? "2. Il fronte della carta" : "2. La pagina dei dati";
+    carta ? "2. Il fronte della carta" : (aMano ? "2. Il lato con la fotografia" : "2. La pagina dei dati");
   document.getElementById("testo_documento").textContent = carta
     ? "Il lato con la tua fotografia. Metti il telefono di lato, riempi il riquadro e tienilo parallelo alla carta, non di sbieco."
-    : "La pagina con la fotografia e, sotto, le due righe di caratteri: da questa sola foto esce tutto. Metti il telefono di lato e riempi il riquadro.";
+    : (aMano
+      ? "Il lato con la tua fotografia. Questo documento non ha le righe di caratteri, quindi la macchina non legge niente e i dati si scrivono a mano: qui si sta provando proprio quella strada."
+      : "La pagina con la fotografia e, sotto, le due righe di caratteri: da questa sola foto esce tutto. Metti il telefono di lato e riempi il riquadro.");
   document.querySelector("#passo_documento .guida").className =
     carta ? "guida documento" : "guida pagina";
   document.getElementById("passo_documento").classList.remove("spento");
@@ -385,6 +389,7 @@ document.getElementById("vai").addEventListener("click", async () => {
   perVolto.append("selfie", foto.selfie, "selfie.jpg");
   const perMrz = new FormData();
   perMrz.append("immagine", tipo === "carta" ? foto.retro : foto.documento, "mrz.jpg");
+  perMrz.append("consenso_invio", consenso === "si" ? "si" : "no");
 
   // Qui si sta misurando, quindi si chiedono i punteggi di tutti e due i
   // modelli sulla stessa faccia: e' l'unico confronto che vuol dire qualcosa.
@@ -399,7 +404,11 @@ document.getElementById("vai").addEventListener("click", async () => {
   // scaduto non e' un documento di identificazione, quindi il confronto non si
   // deve fare affatto: non e' solo tempo sprecato, e' un volto elaborato per
   // niente. Costa i secondi della lettura prima del confronto, e li vale.
-  const dati = await chiama("mrz", perMrz);
+  // Un documento senza le righe di caratteri non si legge affatto: non c'e'
+  // niente da chiamare, e i campi partono vuoti da riempire a mano. E' la
+  // strada di scampo gia' decisa, e finche' non si poteva scegliere la patente
+  // non c'era modo di provarla.
+  const dati = tipo === "patente" ? datiAMano() : await chiama("mrz", perMrz);
   const scadenza = (dati && dati.validita) || {};
   if (scadenza.scaduto === true) {
     mostra(schedaMrz(dati) + ilDocumentoEScaduto(scadenza));
@@ -411,7 +420,12 @@ document.getElementById("vai").addEventListener("click", async () => {
   mostra(schedaVolto(volto) + schedaMrz(dati));
   if (volto.verificato && volto.vettore_selfie) {
     tentativi = 0;
-    registra(volto, dati);
+    // **Non si iscrive prima della conferma.** Prima si iscriveva qui, con i
+    // dati come li aveva letti la macchina, e la scheda con i campi da
+    // correggere arrivava dopo: quello che l'ospite scriveva non finiva da
+    // nessuna parte. Adesso l'iscrizione la fa il tasto "sono giusti", con
+    // dentro le correzioni.
+    ultimoConfronto = { volto: volto, dati: dati };
   } else {
     tentativi++;
     esauriti = tentativi >= TENTATIVI_MAX;
@@ -571,20 +585,42 @@ const DA_MOSTRARE = ["tipo_documento", "cognome", "nome", "sesso", "data_nascita
                      "numero_documento", "numero_supporto", "numero_personale",
                      "scadenza", "stato_emissione"];
 
-function schedaMrz(r) {
-  if (r.errore) {
-    return '<div class="passo"><div class="verdetto no">I caratteri non si leggono</div>' +
-      "<p>" + r.errore + ". Rifai la foto del lato con le righe, più vicino e senza riflessi, "
-      + "oppure scrivi i dati a mano.</p></div>";
-  }
+function datiAMano() {
+  const campi = {};
+  for (const chiave of DA_MOSTRARE) campi[chiave] = { valore: "" };
+  return { campi: campi, a_mano: true, sigla_documento: "senza-mrz" };
+}
+
+function campiModificabili(r) {
   let campi = "";
   for (const chiave of DA_MOSTRARE) {
     const c = r.campi[chiave];
     if (!c) continue;
     campi += '<div class="campo' + (c.verificato === false ? " storto" : "") + '">' +
       "<label>" + (NOMI_CAMPI[chiave] || chiave) + "</label>" +
-      '<input value="' + (c.valore || "").replace(/"/g, "&quot;") + '"></div>';
+      '<input data-campo="' + chiave + '" value="' +
+        (c.valore || "").replace(/"/g, "&quot;") + '"></div>';
   }
+  return campi + '<p class="sotto">Ogni campo qui sopra <b>si pu&ograve; correggere</b>: '
+    + "scrivici sopra. Quello che confermi &egrave; quello che vale, non quello che ha "
+    + "letto la macchina.</p>";
+}
+
+function schedaMrz(r) {
+  if (r.a_mano) {
+    return '<div class="passo"><div class="verdetto no">Questo documento non si legge</div>' +
+      "<p>Non ha le due righe di caratteri, quindi non c&rsquo;&egrave; niente da leggere e "
+      + "<b>i dati si scrivono a mano</b>. Il confronto fra la fotografia del documento e il "
+      + "selfie invece &egrave; stato fatto lo stesso, ed &egrave; qui sopra.</p>" +
+      campiModificabili(r) +
+      '<button id="conferma">Sì, i dati sono giusti</button></div>';
+  }
+  if (r.errore) {
+    return '<div class="passo"><div class="verdetto no">I caratteri non si leggono</div>' +
+      "<p>" + r.errore + ". Rifai la foto del lato con le righe, più vicino e senza riflessi, "
+      + "oppure scrivi i dati a mano.</p></div>";
+  }
+  const campi = campiModificabili(r);
   const v = r.validita || {};
   const quandoScade = v.scaduto === true
     ? '<div class="avviso">Scaduto il ' + v.scade_il + ", " + Math.abs(v.giorni) + " giorni fa.</div>"
@@ -606,9 +642,36 @@ function schedaMrz(r) {
 }
 
 function conferma(bottone) {
-  bottone.textContent = "Grazie, è tutto";
+  // Quello che vale e' quello che c'e' scritto adesso nei campi, non quello che
+  // ha letto la macchina: se fosse il contrario i campi non servirebbero a
+  // niente e correggerli sarebbe un gesto per finta.
+  const dati = ultimoConfronto && ultimoConfronto.dati;
+  let corretti = 0;
+  document.querySelectorAll(".campo input").forEach(i => {
+    const chiave = i.dataset.campo;
+    const campo = dati && dati.campi && dati.campi[chiave];
+    if (campo && i.value !== (campo.valore || "")) {
+      campo.valore = i.value;
+      campo.corretto_a_mano = true;
+      corretti++;
+    }
+    i.disabled = true;
+  });
+  bottone.textContent = corretti ? "Grazie, ho preso le correzioni" : "Grazie, è tutto";
   bottone.disabled = true;
-  document.querySelectorAll(".campo input").forEach(i => { i.disabled = true; });
+  // Quanti campi la macchina ha letto male, e nel quaderno e' un numero solo:
+  // dice quanto ci si puo' fidare della lettura senza guardare nessun dato.
+  if (dati) chiama("corretti", nuovoModulo({ campi_corretti: String(corretti),
+                                          tipo_documento: dati.sigla_documento || "?" }));
+  if (ultimoConfronto && ultimoConfronto.volto.verificato)
+    registra(ultimoConfronto.volto, dati);
+}
+
+function nuovoModulo(campi) {
+  const m = new FormData();
+  for (const [c, v] of Object.entries(campi)) m.append(c, v);
+  m.append("consenso_invio", consenso === "si" ? "si" : "no");
+  return m;
 }
 
 function riga(chiave, valore) {

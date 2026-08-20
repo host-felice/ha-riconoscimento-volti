@@ -24,7 +24,7 @@ import mrz
 import registro
 import volti
 
-VERSIONE = "0.17.0"
+VERSIONE = "0.18.0"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 PREDEFINITE = {"modello": "buffalo_l", "invio_prove": "", "soglia": 0.4, "soglia_sface": 0.363,
@@ -935,7 +935,38 @@ def leggi_mrz():
     log.info("mrz: %s, seconda passata %s, campi da correggere %s, %s, memoria %s MB",
              esito["formato"], esito["seconda_passata"], esito["da_correggere"],
              _detta_validita(validita), _memoria_mb())
+    # Nel quaderno va **una riga costruita a mano**, non l'esito intero: dentro
+    # ci sono i campi del documento e le righe di caratteri, cioe' il nome e il
+    # cognome di una persona. Allungare la lista dei vietati sarebbe il modo per
+    # dimenticarsene il giorno che l'esito cresce di un campo.
+    esito["prova_mandata"] = _registra("mrz", {
+        "formato": esito.get("formato"),
+        "seconda_passata": esito.get("seconda_passata"),
+        "affidabile": esito.get("affidabile"),
+        "quanti_da_correggere": len(esito.get("da_correggere") or []),
+        "da_correggere": esito.get("da_correggere"),
+        "scaduto": validita.get("scaduto"),
+        "millisecondi": esito["millisecondi"],
+    })
     return jsonify(esito)
+
+
+@app.route("/corretti", methods=["POST"])
+def corretti():
+    """Quanti campi la persona ha dovuto correggere a mano dopo la lettura.
+
+    E' la misura che serve a #7 e non si puo' ricavare da nessun'altra parte:
+    le cifre di controllo dicono quali campi **la macchina** sospetta, questo
+    dice quali erano **davvero** sbagliati, compresi quelli che una cifra di
+    controllo non ce l'hanno e passano inosservati.
+
+    Numeri e basta: quanti, non quali valori.
+    """
+    quanti = _campo("campi_corretti")
+    return jsonify({"prova_mandata": _registra("corretti", {
+        "quanti_corretti": int(quanti) if str(quanti).isdigit() else 0,
+        "sigla_documento": _campo("tipo_documento"),
+    })})
 
 
 if __name__ == "__main__":
