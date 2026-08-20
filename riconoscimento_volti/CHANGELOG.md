@@ -3,6 +3,22 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.20.2
+
+**All'ospite non serve sapere come funziona.** Fa due foto e un selfie: dove
+stiano le righe a lettura automatica, cosa ci sia scritto dentro e perche' su un
+documento ci siano e su un altro no non gli cambia niente di quello che deve
+fare. La 0.20.1 aveva sostituito una parola sbagliata con una parola giusta,
+quando la frase intera era di troppo.
+
+- Sparite tutte le spiegazioni del meccanismo dalle istruzioni. Restano il lato
+  da fotografare e come inquadrarlo: vicino, di lato, senza riflessi.
+- Della patente si dice **la sola cosa che cambia per lui**, e si dice prima
+  dello scatto invece che dopo: il modulo lo compila lui.
+- Quando la lettura non riesce, il messaggio dice cosa fare (rifare la foto piu'
+  da vicino, oppure scrivere a mano) e non piu' quale parte del documento non si
+  e' letta.
+
 ## 0.20.1
 
 Solo parole, e sono quelle che legge l'ospite.
