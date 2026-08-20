@@ -785,7 +785,7 @@ function testoStampato(r) {
   // serve davvero, perche' dice se la lettura non ha girato oppure ha girato e
   // non si e' riconosciuto niente dentro. Sono due guasti diversi.
   const campi = r.campi || {};
-  const mancavano = daMostrare().filter(c => !(campi[c] && campi[c].valore));
+  const mancavano = daMostrare().filter(c => !(campi[c] || {}).valore);
   const aperto = mancavano.length ? " open" : "";
   // **Il tasto compare solo se qualche campo e' rimasto vuoto**, che e' l'unico
   // caso in cui quel testo serve a qualcosa. Il testo contiene i dati della
@@ -805,8 +805,11 @@ function testoStampato(r) {
 function campiModificabili(r) {
   let campi = "";
   for (const chiave of daMostrare()) {
-    const c = r.campi[chiave];
-    if (!c) continue;
+    // **Un campo che manca del tutto si disegna vuoto, non si salta.** Saltarlo
+    // faceva vedere una scheda completa mentre il programma sapeva che qualcosa
+    // mancava: usciva la richiesta di mandare il testo letto e non si capiva
+    // perche', perche' la casella che mancava non era da nessuna parte.
+    const c = r.campi[chiave] || { valore: "" };
     campi += '<div class="campo' + (c.verificato === false ? " storto" : "") + '">' +
       "<label>" + (NOMI_CAMPI[chiave] || chiave) + "</label>" +
       '<input data-campo="' + chiave + '"' +

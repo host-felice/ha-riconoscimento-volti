@@ -3,6 +3,20 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.44.0
+
+- **Un campo che manca del tutto adesso si disegna vuoto, invece di sparire.**
+  La scheda saltava i campi che non erano arrivati, e il conto dei vuoti li
+  contava lo stesso: si vedeva una scheda **completa** e insieme la richiesta di
+  mandare il testo letto perche' qualcosa non era stato letto. Non era una
+  contraddizione, era la stessa verita' guardata da due parti, e la casella che
+  mancava non era da nessuna parte.
+
+  Vale per la carta d'identita' (dove il comune di residenza arriva dal retro) e
+  per la patente (dove il comune di nascita arriva dal campo 3): quando uno dei
+  due non esce, adesso si vede la sua casella vuota e si capisce di cosa si sta
+  parlando.
+
 ## 0.43.0
 
 - **Del testo letto parte solo quello che non si e' saputo usare.** Da ogni riga
