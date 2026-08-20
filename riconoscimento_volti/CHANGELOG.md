@@ -3,6 +3,22 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.45.2
+
+Sulla carta d'identita' elettronica italiana la lettera del tipo documento e'
+**`C`, ed e' giusta.** Fino a ieri veniva riportata a `I` e la lettura veniva
+segnata come "tipo letto male", su una carta letta senza un errore. Per chi
+usa il portale non cambiava niente, perche' `C` e `I` dicono tutte e due
+"Carta d'Identita'". Cambiava per le misure del banco di prova: quante volte
+il tipo esce male rispondeva sempre "tutte".
+
+Adesso la lettera si considera sbagliata solo quando **nomina un altro
+documento**, non quando e' una delle tre che lo standard prevede per la carta
+d'identita' (`I`, `A`, `C`). La correzione per cui era nata, la `P` del
+passaporto letta come `F`, resta identica.
+
+Trovato il 21 agosto 2026 su una serie di fotografie fatte male apposta.
+
 ## 0.45.1
 
 Fuori i dati personali anche dai **commenti del codice e dal changelog**, non

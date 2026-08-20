@@ -36,6 +36,14 @@ assert "tipo_letto_male" not in r, r
 r = server._raddrizza_il_tipo(esito("TD1", "1"), "carta")
 assert r["sigla_documento"] == "I" and r["tipo_letto_male"] == "1", r
 
+# --- le tre lettere della carta d'identita' vanno bene tutte e tre -----------
+# La carta elettronica italiana scrive `C`, e prima veniva segnata come letta
+# male su ogni singola lettura riuscita.
+for gia_giusta in ("I", "A", "C"):
+    r = server._raddrizza_il_tipo(esito("TD1", gia_giusta), "carta")
+    assert "tipo_letto_male" not in r, gia_giusta
+    assert r["sigla_documento"] == gia_giusta, r
+
 # --- dichiarato e fotografato non coincidono: non si raddrizza, si dice ------
 r = server._raddrizza_il_tipo(esito("TD1", "I"), "passaporto")
 assert "tipo_letto_male" not in r, "non si corregge sul formato sbagliato"

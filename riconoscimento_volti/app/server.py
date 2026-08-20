@@ -26,7 +26,7 @@ import ottico
 import registro
 import volti
 
-VERSIONE = "0.45.1"
+VERSIONE = "0.45.2"
 QUI = os.path.dirname(os.path.abspath(__file__))
 OPZIONI_FILE = os.environ.get("OPZIONI_FILE", "/data/options.json")
 # **"modello" non e' piu' un'opzione del pannello**, e non lo sara' nemmeno dopo.
@@ -952,6 +952,13 @@ def _raddrizza_il_tipo(esito, dichiarato):
     documento ha, prima ancora di fotografarlo, e il formato della banda lo
     conferma per una strada indipendente dalla lettera. Quando quelle due cose
     concordano fra loro e la lettera no, e' la lettera a essere sbagliata.
+
+    **Sbagliata vuol dire che nomina un altro documento**, non che e' un'altra
+    lettera. Per la carta d'identita' lo standard ne prevede tre, `I`, `A` e
+    `C`, e la carta elettronica italiana usa davvero la `C`: confrontare con
+    una sola di loro segnalava "tipo letto male" su ogni carta italiana letta
+    perfettamente, e la misura di quante volte il tipo esce male diceva sempre
+    "tutte". Trovato il 21 agosto 2026 sulle foto brutte.
     """
     atteso = ATTESO_PER_TIPO.get(dichiarato or "")
     if not atteso:
@@ -963,7 +970,8 @@ def _raddrizza_il_tipo(esito, dichiarato):
         esito["il_formato_non_torna"] = "dichiarato %s, letto %s" % (dichiarato, esito.get("formato"))
         return esito
     campo = (esito.get("campi") or {}).get("tipo_documento") or {}
-    if str(campo.get("valore", ""))[:1] == lettera:
+    letta = str(campo.get("valore", ""))[:1]
+    if mrz.TIPI.get(letta) == mrz.TIPI[lettera]:
         return esito
     esito["tipo_letto_male"] = campo.get("valore")
     campo["valore"] = lettera
