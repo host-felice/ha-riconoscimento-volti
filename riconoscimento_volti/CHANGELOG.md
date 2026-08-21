@@ -3,6 +3,35 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.45.3
+
+Due difetti nella lettura del testo stampato, tutti e due trovati il 21 agosto
+2026 fotografando male la stessa patente apposta. La banda ottica non c'entra:
+li' non e' cambiato niente.
+
+**L'ultimo campo numerato non si mangia piu' quello che viene dopo.** I campi
+della patente sono numerati sul documento, e finora il valore di ciascuno si
+prendeva dal suo numero fino al numero successivo. Per l'ultimo un successivo
+non c'e', quindi si prendeva fino in fondo alla lettura, intestazioni comprese:
+sono usciti cognome "MUSETTI PATENTE DI GUIDA REPUBBLICA ITALIANA" e nome
+"STEFANIA PATENTEDIGUIDA". Il primo veniva buttato perche' supera i quaranta
+caratteri, il secondo no, ed e' quello che costava: non un campo perso, un campo
+sporco che sembra pulito e che sarebbe finito nella schedina della Questura
+senza che niente lo segnalasse. Adesso all'ultimo numero si da' una riga sola,
+quella dove sta scritto, e se li' accanto non c'e' niente quella subito sotto.
+La seconda meta' serve a un caso vero: sulla patente il campo 5 va a capo prima
+del numero del documento.
+
+**Una data attaccata a una parola torna a essere una data.** Si pretendeva uno
+spazio dopo l'anno, e la lettura gli spazi se li mangia: da "21/07/71ROMA(RM)"
+non usciva nessuna data. Le date si propongono solo in coppia, nascita e
+scadenza che condividono giorno e mese, quindi perdendone una non si proponeva
+piu' niente. Sulla stessa patente, fotografata dritta, la riga restava staccata
+e le date uscivano tutte e due: lo stesso documento dava due risultati diversi
+a seconda di come lo si inquadrava.
+
+Le otto prove dell'add-on passano tutte.
+
 ## 0.45.2
 
 Sulla carta d'identita' elettronica italiana la lettera del tipo documento e'

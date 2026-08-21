@@ -1,6 +1,6 @@
 ---
 name: Riconoscimento volti
-version: "0.45.2"
+version: "0.45.3"
 slug: riconoscimento_volti
 description: Confronta il volto stampato su un documento con un selfie, riconosce un ospite atteso alla porta e dice se davanti all'obiettivo c'era una persona
 url: https://github.com/host-felice/ha-riconoscimento-volti

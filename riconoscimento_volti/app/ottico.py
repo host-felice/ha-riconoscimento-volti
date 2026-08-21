@@ -86,11 +86,20 @@ def righe(dati_binari, lato=LATO):
 
 
 # Una data stampata: due cifre, due cifre, quattro cifre, separate come capita.
-DATA = re.compile(r"\b(\d{2})\D{1,3}(\d{2})\D{1,3}(\d{4}|\d{2})\b")
+DATA = re.compile(r"\b(\d{2})\D{1,3}(\d{2})\D{1,3}(\d{4}|\d{2})")
 # Fra un pezzo e l'altro della data ci sta **qualunque cosa che non sia una
 # cifra**, non un elenco di separatori scelti da noi. L'elenco era punto, virgola,
 # barra, trattino e spazio, e bastava un carattere mai visto per perdere la data:
 # regole nostre che decidono cosa un documento ha il diritto di stampare.
+#
+# **Dopo l'anno non si pretende niente.** C'era un confine di parola, e chiedeva
+# che dopo l'ultima cifra venisse uno spazio o la fine della riga. La lettura gli
+# spazi se li mangia, quindi la data esce attaccata a quello che segue e quel
+# confine non c'e': `21/07/71ROMA(RM)` e `21.07.20164c.MIT-UCO`, letti tutti e
+# due su una patente vera. Con il confine quelle due date sparivano, e sulla
+# prima sparivano in coppia, perche' le date si propongono solo a due a due:
+# perdendone una non si proponeva piu' niente. Sulla **stessa** patente,
+# fotografata dritta, la riga restava staccata e uscivano tutte e due.
 
 
 def _anno(cifre):
@@ -127,8 +136,42 @@ DALLA_PATENTE = (("1", "cognome", NOME_DI_PERSONA),
                  ("5", "numero_documento", NUMERO_DI_PATENTE))
 
 
+def _fine_dell_ultimo(testo, fine):
+    """Dove finisce il valore dell'**ultimo** numero letto, che non ha un dopo.
+
+    Prima si prendeva tutto fino in fondo, e li' dietro c'e' quello che la
+    lettura ha restituito per ultimo: le intestazioni. Da una patente vera,
+    fotografata storta, sono usciti cognome `MUSETTI PATENTE DI GUIDA REPUBBLICA
+    ITALIANA` e nome `STEFANIA PATENTEDIGUIDA`. Il primo il controllo di forma lo
+    butta perche' supera i quaranta caratteri; **il secondo passa**, perche' sono
+    lettere e spazi e sta sotto il tetto. Quello e' il caso che costa: non un
+    campo perso, un campo sporco che sembra pulito e va in Questura cosi'.
+
+    Quindi all'ultimo si da' **una riga sola**: quella dove sta il suo numero, e
+    se li' dopo il numero non c'e' scritto niente, quella subito sotto. La
+    seconda meta' non e' un di piu': su una patente vera il campo 5 va a capo
+    prima del numero (`5.` da solo, `U1A000000B` sotto), e senza di lei il numero
+    del documento andrebbe perso ogni volta che 5 e' l'ultimo letto.
+
+    Gli altri numeri restano come prima, cioe' fino al numero successivo, anche
+    se per arrivarci scavalcano delle righe: e' cosi' che il campo 3 prende il
+    comune di nascita, che sta sotto la data.
+    """
+    a_capo = testo.find("\n", fine)
+    if a_capo == -1:
+        return len(testo)
+    if testo[fine:a_capo].strip():
+        return a_capo
+    dopo = testo.find("\n", a_capo + 1)
+    return len(testo) if dopo == -1 else dopo
+
+
 def _pezzi_numerati(testo):
-    """Quello che sta scritto dopo ogni numero di campo, fino al numero dopo."""
+    """Quello che sta scritto dopo ogni numero di campo, fino al numero dopo.
+
+    Il testo arriva con le righe ancora separate da un a capo, e non appiattite
+    in una riga sola: serve a sapere dove finisce l'ultimo numero letto.
+    """
     tagli = [(quello.start(), quello.end(),
                (quello.group(1) or quello.group(2)).lower())
              for quello in MARCATORE.finditer(testo)]
@@ -138,7 +181,8 @@ def _pezzi_numerati(testo):
         # date lo rifanno comparire (dentro `21.07.2016` c'e' un `2.`).
         if numero in pezzi:
             continue
-        dopo = tagli[quante + 1][0] if quante + 1 < len(tagli) else len(testo)
+        dopo = (tagli[quante + 1][0] if quante + 1 < len(tagli)
+                else _fine_dell_ultimo(testo, fine))
         pezzi[numero] = testo[fine:dopo].strip()
     return pezzi
 
@@ -156,7 +200,7 @@ def dalla_patente(righe):
     davanti). Se il pezzo non ha la forma, il campo resta vuoto e lo scrive
     l'ospite: dieci secondi suoi contro una schedina sbagliata alla Questura.
     """
-    pezzi = _pezzi_numerati(" ".join(righe))
+    pezzi = _pezzi_numerati("\n".join(righe))
     fuori = {}
     for numero, chiave, forma in DALLA_PATENTE:
         valore = pezzi.get(numero, "").strip(" .,-")

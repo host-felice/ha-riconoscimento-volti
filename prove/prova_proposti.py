@@ -143,6 +143,25 @@ atteso = {"cognome": "ROSSI", "nome": "MARIO", "data_nascita": "01/03/1980",
 for chiave, valore in atteso.items():
     assert r.get(chiave, {}).get("valore") == valore, (chiave, r.get(chiave))
 
+# --- e queste sono le righe della stessa patente, fotografata storta ---------
+# 21 agosto 2026. La lettura ha rimesso le intestazioni in coda invece che in
+# testa, e i due campi che si vedono sono rimasti gli ultimi numeri letti: senza
+# rete si prendevano tutto quello che veniva dopo. `MUSETTI PATENTE DI GUIDA
+# REPUBBLICA ITALIANA` lo buttava il tetto dei quaranta caratteri, `STEFANIA
+# PATENTEDIGUIDA` no, ed e' il caso che conta: un campo sporco che sembra pulito.
+storta = ["3.21/07/71ROMA(RM)", "1.MUSETTI", "PATENTE DI GUIDA",
+          "REPUBBLICA ITALIANA"]
+assert ottico.dalla_patente(storta)["cognome"]["valore"] == "MUSETTI", storta
+assert ottico.dalla_patente(["2.STEFANIA", "PATENTEDIGUIDA"]) == {"nome": {"valore": "STEFANIA"}}
+# ma il numero che va a capo prima del suo valore si prende lo stesso
+assert ottico.dalla_patente(["5.", "U1A000000B"])["numero_documento"]["valore"] == "U1A000000B"
+
+# --- una data attaccata a una parola resta una data --------------------------
+# Sulla stessa patente storta: `21/07/71ROMA(RM)`, senza lo spazio. Chiedendo uno
+# spazio dopo l'anno restava una data sola, e le date si propongono in coppia.
+assert ottico.proponi(["3.21/07/71ROMA(RM)", "4b.21/07/2029"]) == {
+    "data_nascita": {"valore": "21/07/1971"}, "scadenza": {"valore": "21/07/2029"}}
+
 # --- regole piu' lasche, ognuna da un caso che era fallito -------------------
 # il numero del documento puo' uscire minuscolo, e si rimette maiuscolo
 assert ottico.dalla_patente(["5. u1a000000b", "9.B"])["numero_documento"]["valore"] == "U1A000000B"
