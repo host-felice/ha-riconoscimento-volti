@@ -3,6 +3,23 @@
 Home Assistant mostra questa pagina quando propone un aggiornamento. Serve a
 sapere cosa si sta installando senza andare a leggere il codice.
 
+## 0.45.4
+
+**Adesso l'add-on dice il numero di versione giusto.** Il numero e' scritto in
+due posti: quello che Home Assistant guarda per proporre l'aggiornamento, e
+quello che l'add-on pronuncia quando gli si chiede come sta. Della 0.45.3 era
+stato alzato solo il primo, quindi su Teramo risultava installata la 0.45.3 e
+insieme l'add-on si presentava come 0.45.2. Tutte e due le cose erano vere: sono
+due numeri diversi.
+
+Le due copie restano due, perche' il file che porta il primo dentro l'immagine
+non ci finisce. Quello che cambia e' che adesso le prove si accorgono da sole
+quando divergono. Vale la pena averla, quella rete: quel numero e' il solo modo
+di sapere cosa gira davvero su una macchina che non e' in casa, ed e' su di lui
+che si regge il modo di aggiornare i clienti.
+
+Nella lettura dei documenti non cambia niente.
+
 ## 0.45.3
 
 Due difetti nella lettura del testo stampato, tutti e due trovati il 21 agosto
@@ -29,14 +46,6 @@ scadenza che condividono giorno e mese, quindi perdendone una non si proponeva
 piu' niente. Sulla stessa patente, fotografata dritta, la riga restava staccata
 e le date uscivano tutte e due: lo stesso documento dava due risultati diversi
 a seconda di come lo si inquadrava.
-
-**Il numero di versione e' scritto in due posti**, uno che Home Assistant guarda
-per proporre l'aggiornamento e uno che l'add-on dichiara quando gli si chiede
-come sta. La 0.45.3 e' stata installata su Teramo e si e' presentata come
-0.45.2, perche' era stato alzato solo il primo. Adesso le prove si accorgono da
-sole quando i due divergono: sbagliare quel numero non e' un dettaglio, e' il
-solo modo che abbiamo di sapere cosa gira davvero su una macchina che non e'
-qui.
 
 Le otto prove dell'add-on passano tutte.
 
