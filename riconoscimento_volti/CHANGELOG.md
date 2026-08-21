@@ -30,6 +30,14 @@ piu' niente. Sulla stessa patente, fotografata dritta, la riga restava staccata
 e le date uscivano tutte e due: lo stesso documento dava due risultati diversi
 a seconda di come lo si inquadrava.
 
+**Il numero di versione e' scritto in due posti**, uno che Home Assistant guarda
+per proporre l'aggiornamento e uno che l'add-on dichiara quando gli si chiede
+come sta. La 0.45.3 e' stata installata su Teramo e si e' presentata come
+0.45.2, perche' era stato alzato solo il primo. Adesso le prove si accorgono da
+sole quando i due divergono: sbagliare quel numero non e' un dettaglio, e' il
+solo modo che abbiamo di sapere cosa gira davvero su una macchina che non e'
+qui.
+
 Le otto prove dell'add-on passano tutte.
 
 ## 0.45.2
